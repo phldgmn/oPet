@@ -28,6 +28,8 @@ model Petition {
   title                 String
   summary               String
   body                  String
+  imageUrl              String?
+  thumbnailImageUrl     String?
   recipientName         String
   recipientDescription  String?
   status                String      @default("draft")
@@ -52,6 +54,8 @@ model PetitionUpdate {
   petitionId      String
   currentTitle    String
   currentContent  String
+  currentImageUrl String?
+  currentThumbnailImageUrl String?
   lastPublishedAt DateTime?
   createdBy       String
   updatedBy       String?
@@ -74,6 +78,8 @@ model PetitionUpdateVersion {
   versionNumber    Int
   title            String
   content          String
+  imageUrl         String?
+  thumbnailImageUrl String?
   publishedAt      DateTime       @default(now())
   publishedBy      String
   petitionUpdate   PetitionUpdate @relation(fields: [petitionUpdateId], references: [id])

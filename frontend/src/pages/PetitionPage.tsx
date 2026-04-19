@@ -98,6 +98,13 @@ export default function PetitionPage() {
                 <StatusBadge status={p().status as PetitionStatus} type="petition" />
               </div>
               <h1 class="mb-2 break-words text-3xl font-extrabold">{p().title}</h1>
+              <Show when={p().imageUrl}>
+                <img
+                  src={p().imageUrl ?? undefined}
+                  alt={p().title}
+                  class="mb-4 h-72 w-full rounded-lg border object-cover"
+                />
+              </Show>
               <Show when={p().summary}>
                 <div class="petition-summary mb-4 text-muted-foreground" innerHTML={p().summary} />
               </Show>
@@ -153,8 +160,17 @@ export default function PetitionPage() {
                               onClick={() => toggleExpanded(update.id)}
                             >
                               <div class="flex items-center justify-between gap-3">
-                                <div class="text-base font-semibold">
-                                  {update.isDeleted ? t('app.deleted_update') : (update.latestVersion?.title ?? t('app.published_update'))}
+                                <div class="flex min-w-0 items-center gap-3">
+                                  <Show when={update.latestVersion?.thumbnailImageUrl}>
+                                    <img
+                                      src={update.latestVersion?.thumbnailImageUrl ?? undefined}
+                                      alt={update.latestVersion?.title ?? 'Update thumbnail'}
+                                      class="h-10 w-14 shrink-0 rounded border object-cover"
+                                    />
+                                  </Show>
+                                  <div class="text-base font-semibold">
+                                    {update.isDeleted ? t('app.deleted_update') : (update.latestVersion?.title ?? t('app.published_update'))}
+                                  </div>
                                 </div>
                                 <div class="text-xs text-muted-foreground whitespace-nowrap">
                                   {new Date(update.latestVersion?.publishedAt ?? update.createdAt).toLocaleString()}
@@ -164,6 +180,13 @@ export default function PetitionPage() {
                             <Show when={expandedUpdates().has(update.id)}>
                               <CardContent class="space-y-3 pt-0">
                                 <Show when={!update.isDeleted && update.latestVersion}>
+                                  <Show when={update.latestVersion!.imageUrl}>
+                                    <img
+                                      src={update.latestVersion!.imageUrl ?? undefined}
+                                      alt={update.latestVersion!.title}
+                                      class="h-56 w-full rounded border object-cover"
+                                    />
+                                  </Show>
                                   <div class="petition-body" innerHTML={update.latestVersion!.content} />
                                 </Show>
                                 <Show when={update.isDeleted}>
@@ -178,6 +201,13 @@ export default function PetitionPage() {
                                       <p class="text-xs text-muted-foreground mt-1">
                                         {t('app.published_var', { date: new Date(update.latestVersion!.publishedAt).toLocaleString() })}
                                       </p>
+                                      <Show when={update.latestVersion!.imageUrl}>
+                                        <img
+                                          src={update.latestVersion!.imageUrl ?? undefined}
+                                          alt={update.latestVersion!.title}
+                                          class="mt-2 h-48 w-full rounded border object-cover"
+                                        />
+                                      </Show>
                                       <div class="petition-body mt-2 text-sm" innerHTML={update.latestVersion!.content} />
                                     </div>
                                   </Show>
@@ -207,6 +237,13 @@ export default function PetitionPage() {
                                           <p class="text-xs text-muted-foreground mt-1">
                                             {t('app.published_var', { date: new Date(version.publishedAt).toLocaleString() })}
                                           </p>
+                                          <Show when={version.imageUrl}>
+                                            <img
+                                              src={version.imageUrl ?? undefined}
+                                              alt={version.title}
+                                              class="mt-2 h-40 w-full rounded border object-cover"
+                                            />
+                                          </Show>
                                           <div class="petition-body mt-2 text-sm" innerHTML={version.content} />
                                         </div>
                                       )}

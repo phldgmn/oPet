@@ -89,6 +89,13 @@ export default function Home() {
                 {(petition) => (
                   <A href={`/petition/${petition.slug}`} class="no-underline text-inherit">
                     <Card class="h-full cursor-pointer transition-shadow hover:shadow-md">
+                      <Show when={petition.thumbnailImageUrl || petition.imageUrl}>
+                        <img
+                          src={petition.thumbnailImageUrl ?? petition.imageUrl ?? undefined}
+                          alt={petition.title}
+                          class="h-40 w-full rounded-t-lg object-cover"
+                        />
+                      </Show>
                       <CardHeader class="pb-2">
                         <CardTitle class="text-base leading-snug">{petition.title}</CardTitle>
                         <p class="text-sm text-muted-foreground">

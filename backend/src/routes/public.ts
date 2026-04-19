@@ -45,6 +45,8 @@ publicRoutes.get('/petitions', async (c) => {
         slug: true,
         title: true,
         summary: true,
+        imageUrl: true,
+        thumbnailImageUrl: true,
         recipientName: true,
         status: true,
         goalCount: true,

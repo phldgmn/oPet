@@ -21,6 +21,8 @@ interface PetitionFormData {
   title: string
   summary: string
   body: string
+  imageUrl: string
+  thumbnailImageUrl: string
   recipientName: string
   recipientDescription: string
   status: string
@@ -37,6 +39,8 @@ const emptyForm = (): PetitionFormData => ({
   title: '',
   summary: '',
   body: '',
+  imageUrl: '',
+  thumbnailImageUrl: '',
   recipientName: '',
   recipientDescription: '',
   status: 'draft',
@@ -65,6 +69,7 @@ export default function PetitionEditorPage() {
 
   const [form, setForm] = createSignal<PetitionFormData>(emptyForm())
   const [saving, setSaving] = createSignal(false)
+  const [imageUploading, setImageUploading] = createSignal(false)
   const [error, setError] = createSignal<string | null>(null)
   const [success, setSuccess] = createSignal<string | null>(null)
 
@@ -93,6 +98,8 @@ export default function PetitionEditorPage() {
         title: p.title,
         summary: p.summary,
         body: p.body,
+        imageUrl: p.imageUrl ?? '',
+        thumbnailImageUrl: p.thumbnailImageUrl ?? '',
         recipientName: p.recipientName,
         recipientDescription: p.recipientDescription ?? '',
         status: p.status,
@@ -120,6 +127,23 @@ export default function PetitionEditorPage() {
       .slice(0, 80)
   }
 
+  async function uploadImage(
+    field: 'imageUrl' | 'thumbnailImageUrl',
+    file?: File,
+  ) {
+    if (!file || imageUploading()) return
+    setError(null)
+    setImageUploading(true)
+    try {
+      const uploaded = await adminApi.uploadImage(token, file)
+      update(field, uploaded.url)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to upload image')
+    } finally {
+      setImageUploading(false)
+    }
+  }
+
   async function handleSubmit(e: Event) {
     e.preventDefault()
     if (saving()) return
@@ -128,11 +152,15 @@ export default function PetitionEditorPage() {
     setSaving(true)
     try {
       const f = form()
+      const normalizedImageUrl = f.imageUrl.trim()
+      const normalizedThumbnailImageUrl = f.thumbnailImageUrl.trim()
       const payload = {
         slug: f.slug,
         title: f.title,
         summary: f.summary,
         body: f.body,
+        imageUrl: normalizedImageUrl ? normalizedImageUrl : null,
+        thumbnailImageUrl: normalizedThumbnailImageUrl ? normalizedThumbnailImageUrl : null,
         recipientName: f.recipientName,
         recipientDescription: f.recipientDescription || undefined,
         status: f.status,
@@ -240,6 +268,69 @@ export default function PetitionEditorPage() {
                 minHeight="14rem"
               />
             </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <TextField>
+                <TextFieldLabel>Hero Image URL</TextFieldLabel>
+                <TextFieldInput
+                  type="url"
+                  value={form().imageUrl}
+                  onInput={(e) => update('imageUrl', e.currentTarget.value)}
+                  placeholder="https://example.com/hero.jpg"
+                />
+              </TextField>
+              <TextField>
+                <TextFieldLabel>Thumbnail URL</TextFieldLabel>
+                <TextFieldInput
+                  type="url"
+                  value={form().thumbnailImageUrl}
+                  onInput={(e) => update('thumbnailImageUrl', e.currentTarget.value)}
+                  placeholder="https://example.com/thumb.jpg"
+                />
+              </TextField>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <TextField>
+                <TextFieldLabel>Upload Hero Image</TextFieldLabel>
+                <TextFieldInput
+                  type="file"
+                  accept="image/*"
+                  disabled={imageUploading()}
+                  onChange={(e) => uploadImage('imageUrl', e.currentTarget.files?.[0])}
+                />
+              </TextField>
+              <TextField>
+                <TextFieldLabel>Upload Thumbnail</TextFieldLabel>
+                <TextFieldInput
+                  type="file"
+                  accept="image/*"
+                  disabled={imageUploading()}
+                  onChange={(e) => uploadImage('thumbnailImageUrl', e.currentTarget.files?.[0])}
+                />
+              </TextField>
+            </div>
+
+            <Show when={form().imageUrl || form().thumbnailImageUrl}>
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Show when={form().imageUrl}>
+                  <div>
+                    <p class="mb-1 text-xs font-medium text-muted-foreground">Hero preview</p>
+                    <img src={form().imageUrl} alt="Hero preview" class="h-40 w-full rounded border object-cover" />
+                  </div>
+                </Show>
+                <Show when={form().thumbnailImageUrl}>
+                  <div>
+                    <p class="mb-1 text-xs font-medium text-muted-foreground">Thumbnail preview</p>
+                    <img
+                      src={form().thumbnailImageUrl}
+                      alt="Thumbnail preview"
+                      class="h-24 w-40 rounded border object-cover"
+                    />
+                  </div>
+                </Show>
+              </div>
+            </Show>
           </CardContent>
         </Card>
 

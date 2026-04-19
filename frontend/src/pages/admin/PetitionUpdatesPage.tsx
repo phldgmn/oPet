@@ -18,6 +18,7 @@ export default function PetitionUpdatesPage() {
   const [message, setMessage] = createSignal<string | null>(null)
   const [error, setError] = createSignal<string | null>(null)
   const [saving, setSaving] = createSignal(false)
+  const [imageUploading, setImageUploading] = createSignal(false)
   const [publishInFlight, setPublishInFlight] = createSignal(false)
   const [deleteTargetId, setDeleteTargetId] = createSignal<string | null>(null)
 
@@ -27,6 +28,8 @@ export default function PetitionUpdatesPage() {
   const [selectedUpdateId, setSelectedUpdateId] = createSignal<string | null>(null)
   const [title, setTitle] = createSignal('')
   const [content, setContent] = createSignal('')
+  const [imageUrl, setImageUrl] = createSignal('')
+  const [thumbnailImageUrl, setThumbnailImageUrl] = createSignal('')
 
   const selectedUpdate = createMemo(() =>
     updates()?.updates.find((item) => item.id === selectedUpdateId()) ?? null,
@@ -38,6 +41,8 @@ export default function PetitionUpdatesPage() {
     setSelectedUpdateId(item.id)
     setTitle(item.currentTitle)
     setContent(item.currentContent)
+    setImageUrl(item.currentImageUrl ?? '')
+    setThumbnailImageUrl(item.currentThumbnailImageUrl ?? '')
     setError(null)
     setMessage(null)
   }
@@ -60,6 +65,23 @@ export default function PetitionUpdatesPage() {
     setSelectedUpdateId(next.id)
     setTitle(next.currentTitle)
     setContent(next.currentContent)
+    setImageUrl(next.currentImageUrl ?? '')
+    setThumbnailImageUrl(next.currentThumbnailImageUrl ?? '')
+  }
+
+  async function uploadImage(field: 'imageUrl' | 'thumbnailImageUrl', file?: File) {
+    if (!file || imageUploading()) return
+    setError(null)
+    setImageUploading(true)
+    try {
+      const uploaded = await adminApi.uploadImage(token, file)
+      if (field === 'imageUrl') setImageUrl(uploaded.url)
+      else setThumbnailImageUrl(uploaded.url)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to upload image')
+    } finally {
+      setImageUploading(false)
+    }
   }
 
   async function handleCreateOrSave() {
@@ -75,6 +97,8 @@ export default function PetitionUpdatesPage() {
         const created = await adminApi.createPetitionUpdate(token, params.id, {
           title: title().trim(),
           content: content().trim(),
+          imageUrl: imageUrl().trim() || null,
+          thumbnailImageUrl: thumbnailImageUrl().trim() || null,
         })
         setSelectedUpdateId(created.id)
         setMessage(t('app.draft_update_created'))
@@ -82,6 +106,8 @@ export default function PetitionUpdatesPage() {
         await adminApi.updatePetitionUpdate(token, params.id, selectedUpdateId()!, {
           title: title().trim(),
           content: content().trim(),
+          imageUrl: imageUrl().trim() || null,
+          thumbnailImageUrl: thumbnailImageUrl().trim() || null,
         })
         setMessage(t('app.draft_update_saved'))
       }
@@ -107,6 +133,8 @@ export default function PetitionUpdatesPage() {
         const created = await adminApi.createPetitionUpdate(token, params.id, {
           title: title().trim(),
           content: content().trim(),
+          imageUrl: imageUrl().trim() || null,
+          thumbnailImageUrl: thumbnailImageUrl().trim() || null,
         })
         currentId = created.id
         setSelectedUpdateId(created.id)
@@ -115,6 +143,8 @@ export default function PetitionUpdatesPage() {
       await adminApi.publishPetitionUpdate(token, params.id, currentId, {
         title: title().trim(),
         content: content().trim(),
+        imageUrl: imageUrl().trim() || null,
+        thumbnailImageUrl: thumbnailImageUrl().trim() || null,
       })
       setMessage(t('app.update_published_as_a_new_immutable_version'))
       await reloadAndKeepSelection()
@@ -197,6 +227,8 @@ export default function PetitionUpdatesPage() {
                 setSelectedUpdateId(null)
                 setTitle('')
                 setContent('')
+                setImageUrl('')
+                setThumbnailImageUrl('')
                 setError(null)
                 setMessage(null)
               }}
@@ -218,6 +250,13 @@ export default function PetitionUpdatesPage() {
                     onClick={() => selectUpdate(update.id)}
                   >
                     <div class="font-medium line-clamp-2">{update.currentTitle}</div>
+                    <Show when={update.currentThumbnailImageUrl}>
+                      <img
+                        src={update.currentThumbnailImageUrl ?? undefined}
+                        alt="Update thumbnail"
+                        class="mt-2 h-14 w-full rounded border object-cover"
+                      />
+                    </Show>
                     <div class="text-xs text-muted-foreground mt-1">
                       {update.deletedAt ? t('app.deleted') : t('app.var_published_version_s', { count: update.versions.length })}
                     </div>
@@ -263,6 +302,65 @@ export default function PetitionUpdatesPage() {
               />
             </div>
 
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <TextField>
+                <TextFieldLabel>Update Image URL</TextFieldLabel>
+                <TextFieldInput
+                  type="url"
+                  value={imageUrl()}
+                  onInput={(e) => setImageUrl(e.currentTarget.value)}
+                  placeholder="https://example.com/update.jpg"
+                />
+              </TextField>
+              <TextField>
+                <TextFieldLabel>Update Thumbnail URL</TextFieldLabel>
+                <TextFieldInput
+                  type="url"
+                  value={thumbnailImageUrl()}
+                  onInput={(e) => setThumbnailImageUrl(e.currentTarget.value)}
+                  placeholder="https://example.com/update-thumb.jpg"
+                />
+              </TextField>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <TextField>
+                <TextFieldLabel>Upload Update Image</TextFieldLabel>
+                <TextFieldInput
+                  type="file"
+                  accept="image/*"
+                  disabled={imageUploading()}
+                  onChange={(e) => uploadImage('imageUrl', e.currentTarget.files?.[0])}
+                />
+              </TextField>
+              <TextField>
+                <TextFieldLabel>Upload Update Thumbnail</TextFieldLabel>
+                <TextFieldInput
+                  type="file"
+                  accept="image/*"
+                  disabled={imageUploading()}
+                  onChange={(e) => uploadImage('thumbnailImageUrl', e.currentTarget.files?.[0])}
+                />
+              </TextField>
+            </div>
+
+            <Show when={imageUrl() || thumbnailImageUrl()}>
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Show when={imageUrl()}>
+                  <div>
+                    <p class="mb-1 text-xs font-medium text-muted-foreground">Image preview</p>
+                    <img src={imageUrl()} alt="Update image preview" class="h-40 w-full rounded border object-cover" />
+                  </div>
+                </Show>
+                <Show when={thumbnailImageUrl()}>
+                  <div>
+                    <p class="mb-1 text-xs font-medium text-muted-foreground">Thumbnail preview</p>
+                    <img src={thumbnailImageUrl()} alt="Update thumbnail preview" class="h-24 w-40 rounded border object-cover" />
+                  </div>
+                </Show>
+              </div>
+            </Show>
+
             <div class="flex flex-wrap items-center gap-2">
               <Button
                 onClick={handleCreateOrSave}
@@ -307,6 +405,13 @@ export default function PetitionUpdatesPage() {
                             </p>
                           </CardHeader>
                           <CardContent>
+                            <Show when={version.imageUrl}>
+                              <img
+                                src={version.imageUrl ?? undefined}
+                                alt={version.title}
+                                class="mb-3 h-44 w-full rounded border object-cover"
+                              />
+                            </Show>
                             <div class="petition-body text-sm" innerHTML={version.content} />
                           </CardContent>
                         </Card>

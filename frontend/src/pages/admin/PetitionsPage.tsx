@@ -121,8 +121,19 @@ export default function PetitionsPage() {
                     {(p: AdminPetition) => (
                       <TableRow>
                         <TableCell>
-                          <div class="font-semibold text-sm">{p.title}</div>
-                          <div class="text-xs text-muted-foreground">/{p.slug}</div>
+                          <div class="flex items-center gap-3">
+                            <Show when={p.thumbnailImageUrl || p.imageUrl}>
+                              <img
+                                src={p.thumbnailImageUrl ?? p.imageUrl ?? undefined}
+                                alt={p.title}
+                                class="h-10 w-14 rounded border object-cover"
+                              />
+                            </Show>
+                            <div>
+                              <div class="font-semibold text-sm">{p.title}</div>
+                              <div class="text-xs text-muted-foreground">/{p.slug}</div>
+                            </div>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={p.status as PetitionStatus} type="petition" />

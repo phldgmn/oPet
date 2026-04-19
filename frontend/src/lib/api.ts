@@ -7,9 +7,12 @@ async function request<T>(
   token?: string,
 ): Promise<T> {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     'Accept-Language': getCurrentLocale(),
     ...(options.headers as Record<string, string> | undefined),
+  }
+  const isFormData = options.body instanceof FormData
+  if (!isFormData && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json'
   }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
@@ -43,6 +46,8 @@ export interface Petition {
   title: string
   summary: string
   body: string
+  imageUrl?: string | null
+  thumbnailImageUrl?: string | null
   recipientName: string
   recipientDescription?: string
   status: string
@@ -71,6 +76,8 @@ export interface PetitionUpdateVersion {
   versionNumber: number
   title: string
   content: string
+  imageUrl?: string | null
+  thumbnailImageUrl?: string | null
   publishedAt: string
   publishedBy?: string
   publisher?: { id: string; email: string }
@@ -175,6 +182,8 @@ export interface AdminPetitionUpdate {
   petitionId: string
   currentTitle: string
   currentContent: string
+  currentImageUrl?: string | null
+  currentThumbnailImageUrl?: string | null
   lastPublishedAt?: string
   deletedAt?: string
   createdAt: string
@@ -254,7 +263,7 @@ export const adminApi = {
   createPetitionUpdate: (
     token: string,
     petitionId: string,
-    data: { title: string; content: string },
+    data: { title: string; content: string; imageUrl?: string | null; thumbnailImageUrl?: string | null },
   ) =>
     request<AdminPetitionUpdate>(
       `/api/admin/petitions/${petitionId}/updates`,
@@ -266,7 +275,7 @@ export const adminApi = {
     token: string,
     petitionId: string,
     updateId: string,
-    data: { title?: string; content?: string },
+    data: { title?: string; content?: string; imageUrl?: string | null; thumbnailImageUrl?: string | null },
   ) =>
     request<AdminPetitionUpdate>(
       `/api/admin/petitions/${petitionId}/updates/${updateId}`,
@@ -278,7 +287,7 @@ export const adminApi = {
     token: string,
     petitionId: string,
     updateId: string,
-    data?: { title?: string; content?: string },
+    data?: { title?: string; content?: string; imageUrl?: string | null; thumbnailImageUrl?: string | null },
   ) =>
     request<PetitionUpdateVersion>(
       `/api/admin/petitions/${petitionId}/updates/${updateId}/publish`,
@@ -311,6 +320,16 @@ export const adminApi = {
 
   removeSignature: (token: string, id: string) =>
     request<{ message: string }>(`/api/admin/signatures/${id}`, { method: 'DELETE' }, token),
+
+  uploadImage: async (token: string, file: File) => {
+    const body = new FormData()
+    body.append('file', file)
+    return request<{ url: string }>(
+      '/api/admin/uploads/image',
+      { method: 'POST', body },
+      token,
+    )
+  },
 
   exportSignatures: async (
     token: string,

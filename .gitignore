@@ -17,6 +17,7 @@ build/
 # Prisma generated
 backend/node_modules/
 backend/dist/
+backend/uploads/
 
 # Logs
 *.log

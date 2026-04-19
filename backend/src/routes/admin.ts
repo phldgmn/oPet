@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { extname, resolve, join } from 'node:path'
 import { prisma } from '../db.js'
 import { authMiddleware, signToken } from '../middleware/auth.js'
 import { rateLimit } from '../middleware/rateLimit.js'
@@ -31,6 +33,27 @@ function canWritePetitions(role?: string | null): boolean {
   const normalized = normalizeRole(role)
   return (WRITE_ROLES as readonly string[]).includes(normalized)
 }
+
+function isSupportedImageReference(value: string): boolean {
+  if (value.startsWith('/uploads/')) return true
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+const imageReferenceSchema = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? null : value),
+  z.union([
+    z.string().max(2048).refine(
+      (value) => isSupportedImageReference(value),
+      'Image must be an absolute http(s) URL or an /uploads/* path',
+    ),
+    z.null(),
+  ]).optional(),
+)
 
 async function getAccessiblePetitionIds(userId: string): Promise<string[]> {
   const links = await prisma.petitionUserAccess.findMany({
@@ -77,6 +100,39 @@ adminRoutes.post('/login', rateLimit(10, 60_000), async (c) => {
 
 // All routes below require authentication
 adminRoutes.use('*', authMiddleware)
+
+adminRoutes.post('/uploads/image', async (c) => {
+  const user = c.get('user')
+  const role = normalizeRole(user.role)
+  if (!canWritePetitions(role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+
+  const body = await c.req.parseBody()
+  const rawFile = body.file
+  const file = rawFile instanceof File ? rawFile : Array.isArray(rawFile) ? rawFile[0] : null
+
+  if (!file) return c.json({ error: 'No file provided in field "file"' }, 422)
+  if (!file.type.startsWith('image/')) return c.json({ error: 'Only image uploads are allowed' }, 422)
+  if (file.size > 8 * 1024 * 1024) return c.json({ error: 'Image is too large (max 8MB)' }, 422)
+
+  const mimeExtensions: Record<string, string> = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+    'image/gif': '.gif',
+    'image/avif': '.avif',
+  }
+
+  const explicitExtension = extname(file.name || '').toLowerCase()
+  const extension = explicitExtension || mimeExtensions[file.type] || '.bin'
+  const filename = `${Date.now()}-${crypto.randomUUID()}${extension}`
+  const uploadDir = resolve(process.env.UPLOAD_DIR || join(process.cwd(), 'uploads'))
+  const outputPath = resolve(uploadDir, filename)
+
+  await mkdir(uploadDir, { recursive: true })
+  await writeFile(outputPath, new Uint8Array(await file.arrayBuffer()))
+
+  return c.json({ url: `/uploads/${filename}` }, 201)
+})
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
@@ -137,6 +193,8 @@ const petitionSchema = z.object({
   title: z.string().min(4).max(200),
   summary: z.string().min(10).max(1500),
   body: z.string().min(20),
+  imageUrl: imageReferenceSchema,
+  thumbnailImageUrl: imageReferenceSchema,
   recipientName: z.string().min(2).max(200),
   recipientDescription: z.string().max(1500).optional(),
   status: z.enum(['draft', 'active', 'paused', 'completed', 'archived']).default('draft'),
@@ -290,6 +348,8 @@ adminRoutes.delete('/petitions/:id', async (c) => {
 const petitionUpdateDraftSchema = z.object({
   title: z.string().min(2).max(200),
   content: z.string().min(1),
+  imageUrl: imageReferenceSchema,
+  thumbnailImageUrl: imageReferenceSchema,
 })
 
 const petitionUpdatePatchSchema = petitionUpdateDraftSchema.partial()
@@ -297,6 +357,8 @@ const petitionUpdatePatchSchema = petitionUpdateDraftSchema.partial()
 const petitionUpdatePublishSchema = z.object({
   title: z.string().min(2).max(200).optional(),
   content: z.string().min(1).optional(),
+  imageUrl: imageReferenceSchema,
+  thumbnailImageUrl: imageReferenceSchema,
 })
 
 adminRoutes.get('/petitions/:id/updates', async (c) => {
@@ -334,6 +396,8 @@ adminRoutes.post('/petitions/:id/updates', async (c) => {
       petitionId: petition.id,
       currentTitle: parsed.data.title,
       currentContent: parsed.data.content,
+      currentImageUrl: parsed.data.imageUrl,
+      currentThumbnailImageUrl: parsed.data.thumbnailImageUrl,
       createdBy: user.userId,
       updatedBy: user.userId,
     },
@@ -367,6 +431,8 @@ adminRoutes.put('/petitions/:id/updates/:updateId', async (c) => {
     data: {
       currentTitle: parsed.data.title,
       currentContent: parsed.data.content,
+      currentImageUrl: parsed.data.imageUrl,
+      currentThumbnailImageUrl: parsed.data.thumbnailImageUrl,
       updatedBy: user.userId,
     },
     include: {
@@ -421,6 +487,8 @@ adminRoutes.post('/petitions/:id/updates/:updateId/publish', async (c) => {
 
   const title = parsed.data.title ?? existing.currentTitle
   const content = parsed.data.content ?? existing.currentContent
+  const imageUrl = parsed.data.imageUrl ?? existing.currentImageUrl
+  const thumbnailImageUrl = parsed.data.thumbnailImageUrl ?? existing.currentThumbnailImageUrl
   const publishedAt = new Date()
   const versionNumber = (existing.versions[0]?.versionNumber ?? 0) + 1
 
@@ -431,6 +499,8 @@ adminRoutes.post('/petitions/:id/updates/:updateId/publish', async (c) => {
         versionNumber,
         title,
         content,
+        imageUrl,
+        thumbnailImageUrl,
         publishedAt,
         publishedBy: user.userId,
       },
@@ -442,6 +512,8 @@ adminRoutes.post('/petitions/:id/updates/:updateId/publish', async (c) => {
       data: {
         currentTitle: title,
         currentContent: content,
+        currentImageUrl: imageUrl,
+        currentThumbnailImageUrl: thumbnailImageUrl,
         lastPublishedAt: publishedAt,
         updatedBy: user.userId,
       },
@@ -674,6 +746,8 @@ const backupPetitionSchema = z.object({
   title: z.string(),
   summary: z.string(),
   body: z.string(),
+  imageUrl: z.string().nullable().optional(),
+  thumbnailImageUrl: z.string().nullable().optional(),
   recipientName: z.string(),
   recipientDescription: z.string().nullable().optional(),
   status: z.string().default('draft'),
@@ -689,6 +763,8 @@ const backupPetitionSchema = z.object({
     z.object({
       currentTitle: z.string(),
       currentContent: z.string(),
+      currentImageUrl: z.string().nullable().optional(),
+      currentThumbnailImageUrl: z.string().nullable().optional(),
       lastPublishedAt: z.string().nullable().optional(),
       deletedAt: z.string().nullable().optional(),
       createdAt: z.string().optional(),
@@ -698,6 +774,8 @@ const backupPetitionSchema = z.object({
           versionNumber: z.number().int().positive(),
           title: z.string(),
           content: z.string(),
+          imageUrl: z.string().nullable().optional(),
+          thumbnailImageUrl: z.string().nullable().optional(),
           publishedAt: z.string().optional(),
         }),
       ).optional().default([]),
@@ -736,6 +814,8 @@ adminRoutes.post('/restore', async (c) => {
           title: petitionFields.title,
           summary: petitionFields.summary,
           body: petitionFields.body,
+          imageUrl: petitionFields.imageUrl ?? null,
+          thumbnailImageUrl: petitionFields.thumbnailImageUrl ?? null,
           recipientName: petitionFields.recipientName,
           recipientDescription: petitionFields.recipientDescription ?? null,
           status: petitionFields.status,
@@ -751,6 +831,8 @@ adminRoutes.post('/restore', async (c) => {
           title: petitionFields.title,
           summary: petitionFields.summary,
           body: petitionFields.body,
+          imageUrl: petitionFields.imageUrl ?? null,
+          thumbnailImageUrl: petitionFields.thumbnailImageUrl ?? null,
           recipientName: petitionFields.recipientName,
           recipientDescription: petitionFields.recipientDescription ?? null,
           status: petitionFields.status,
@@ -812,6 +894,8 @@ adminRoutes.post('/restore', async (c) => {
             petitionId: petition.id,
             currentTitle: updateFields.currentTitle,
             currentContent: updateFields.currentContent,
+            currentImageUrl: updateFields.currentImageUrl ?? null,
+            currentThumbnailImageUrl: updateFields.currentThumbnailImageUrl ?? null,
             lastPublishedAt: lastPublishedAt ? new Date(lastPublishedAt) : null,
             deletedAt: deletedAt ? new Date(deletedAt) : null,
             createdBy: user.userId,
@@ -830,6 +914,8 @@ adminRoutes.post('/restore', async (c) => {
               versionNumber: version.versionNumber,
               title: version.title,
               content: version.content,
+              imageUrl: version.imageUrl ?? null,
+              thumbnailImageUrl: version.thumbnailImageUrl ?? null,
               publishedAt: version.publishedAt ? new Date(version.publishedAt) : new Date(),
               publishedBy: user.userId,
             },
