@@ -233,6 +233,7 @@ export default function PetitionEditorPage() {
                   if (!isEdit) update('slug', autoSlug(e.currentTarget.value))
                 }}
               />
+              <TextFieldDescription>Kurz, konkret, teilbar.</TextFieldDescription>
             </TextField>
 
             <TextField>
@@ -247,8 +248,8 @@ export default function PetitionEditorPage() {
               <TextFieldDescription>{t('app.url')}: /petition/{form().slug || '…'}</TextFieldDescription>
             </TextField>
 
-            <div class="flex flex-col gap-1">
-              <label class="text-sm font-medium">{t('app.summary_shown_in_listing')}</label>
+            <TextField>
+              <TextFieldLabel>{t('app.summary_shown_in_listing')}</TextFieldLabel>
               <QuillEditor
                 id="summary"
                 value={form().summary}
@@ -256,10 +257,11 @@ export default function PetitionEditorPage() {
                 placeholder={t('app.short_summary_shown_in_the_petition_listing')}
                 minHeight="5rem"
               />
-            </div>
+              <TextFieldDescription>1–2 Sätze für Karten, Listen und Social Preview.</TextFieldDescription>
+            </TextField>
 
-            <div class="flex flex-col gap-1">
-              <label class="text-sm font-medium">{t('app.body_full_petition_text')}</label>
+            <TextField>
+              <TextFieldLabel>{t('app.body_full_petition_text')}</TextFieldLabel>
               <QuillEditor
                 id="body"
                 value={form().body}
@@ -267,7 +269,8 @@ export default function PetitionEditorPage() {
                 placeholder={t('app.full_petition_text')}
                 minHeight="14rem"
               />
-            </div>
+              <TextFieldDescription>Hier die ausführliche Begründung, Forderung und Kontext.</TextFieldDescription>
+            </TextField>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <TextField>
@@ -278,6 +281,7 @@ export default function PetitionEditorPage() {
                   onInput={(e) => update('imageUrl', e.currentTarget.value)}
                   placeholder="https://example.com/hero.jpg"
                 />
+                <TextFieldDescription>Großes Bild auf der öffentlichen Petitionsseite.</TextFieldDescription>
               </TextField>
               <TextField>
                 <TextFieldLabel>Thumbnail URL</TextFieldLabel>
@@ -287,6 +291,7 @@ export default function PetitionEditorPage() {
                   onInput={(e) => update('thumbnailImageUrl', e.currentTarget.value)}
                   placeholder="https://example.com/thumb.jpg"
                 />
+                <TextFieldDescription>Kleineres Vorschaubild für Listen und Karten.</TextFieldDescription>
               </TextField>
             </div>
 
@@ -337,26 +342,28 @@ export default function PetitionEditorPage() {
         <Card>
           <CardHeader><CardTitle>{t('app.recipient')}</CardTitle></CardHeader>
           <CardContent class="space-y-4">
-            <TextField>
-              <TextFieldLabel>{t('app.recipient_name')}</TextFieldLabel>
+              <TextField>
+                <TextFieldLabel>{t('app.recipient_name')}</TextFieldLabel>
               <TextFieldInput
                 type="text"
                 required
                 value={form().recipientName}
-                onInput={(e) => update('recipientName', e.currentTarget.value)}
-              />
-            </TextField>
+                  onInput={(e) => update('recipientName', e.currentTarget.value)}
+                />
+                <TextFieldDescription>Person, Organisation oder Behörde, an die sich die Petition richtet.</TextFieldDescription>
+              </TextField>
 
             <div class="flex flex-col gap-1">
               <label class="text-sm font-medium">{t('app.recipient_description')}</label>
-              <QuillEditor
+                <QuillEditor
                 id="recipientDescription"
                 value={form().recipientDescription}
                 onValueChange={(val) => update('recipientDescription', val)}
                 placeholder={t('app.brief_description_of_the_petition_recipient')}
-                minHeight="5rem"
-              />
-            </div>
+                  minHeight="5rem"
+                />
+                <TextFieldDescription>Kurzer Kontext, warum diese Stelle die richtige Adressatin ist.</TextFieldDescription>
+              </div>
           </CardContent>
         </Card>
 
@@ -391,6 +398,7 @@ export default function PetitionEditorPage() {
                   value={form().goalCount}
                   onInput={(e) => update('goalCount', e.currentTarget.value)}
                 />
+                <TextFieldDescription>Wird für Fortschrittsanzeige genutzt.</TextFieldDescription>
               </TextField>
 
               <TextField>
@@ -418,21 +426,30 @@ export default function PetitionEditorPage() {
                   checked={form().requireVerification}
                   onChange={(checked) => update('requireVerification', checked)}
                 />
-                {t('app.require_email_verification')}
+                <span>
+                  {t('app.require_email_verification')}
+                  <span class="block text-xs text-muted-foreground">Empfohlen: Stimmen zählen erst nach Klick auf den E-Mail-Link.</span>
+                </span>
               </label>
               <label class="flex items-center gap-2 cursor-pointer text-sm">
                 <Checkbox
                   checked={form().allowPublicNames}
                   onChange={(checked) => update('allowPublicNames', checked)}
                 />
-                {t('app.allow_public_names')}
+                <span>
+                  {t('app.allow_public_names')}
+                  <span class="block text-xs text-muted-foreground">Unterzeichnende können ihren Namen öffentlich anzeigen lassen.</span>
+                </span>
               </label>
               <label class="flex items-center gap-2 cursor-pointer text-sm">
                 <Checkbox
                   checked={form().allowComments}
                   onChange={(checked) => update('allowComments', checked)}
                 />
-                {t('app.allow_comments')}
+                <span>
+                  {t('app.allow_comments')}
+                  <span class="block text-xs text-muted-foreground">Kommentare erscheinen nur öffentlich, wenn die Person der Anzeige zustimmt.</span>
+                </span>
               </label>
             </div>
           </CardContent>

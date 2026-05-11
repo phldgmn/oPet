@@ -1,4 +1,4 @@
-import { createResource, createSignal, For, Show } from 'solid-js'
+import { createEffect, createMemo, createResource, createSignal, For, Show } from 'solid-js'
 import { useParams, useNavigate } from '@solidjs/router'
 import { api, SignPayload } from '@/lib/api.js'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -11,6 +11,7 @@ import { TextField, TextFieldInput, TextFieldLabel, TextFieldTextArea } from '@/
 import { StatusBadge, type PetitionStatus } from '@/components/StatusBadge'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import { t } from '@/lib/i18n'
+import { buildShareText, buildShareUrl } from '@/lib/share'
 
 export default function PetitionPage() {
   const params = useParams<{ slug: string }>()
@@ -35,6 +36,30 @@ export default function PetitionPage() {
   })
   const [submitting, setSubmitting] = createSignal(false)
   const [error, setError] = createSignal<string | null>(null)
+  const progress = createMemo(() => {
+    const p = petition()
+    if (!p?.goalCount) return null
+    return Math.min(100, Math.round((p.signatureCount / p.goalCount) * 100))
+  })
+  const avatarCount = createMemo(() => Math.min(120, Math.max(0, petition()?.signatureCount ?? 0)))
+  const shareText = createMemo(() => {
+    const p = petition()
+    return p ? buildShareText(p) : ''
+  })
+
+  createEffect(() => {
+    const p = petition()
+    if (!p) return
+    const description = stripHtml(p.summary || p.body).slice(0, 160)
+    document.title = `${p.title} | oPet`
+    setMeta('description', description)
+    setMeta('og:title', p.title, 'property')
+    setMeta('og:description', shareText() || description, 'property')
+    setMeta('og:url', buildShareUrl(p.slug), 'property')
+    if (p.imageUrl || p.thumbnailImageUrl) {
+      setMeta('og:image', p.imageUrl || p.thumbnailImageUrl || '', 'property')
+    }
+  })
 
   function update<K extends keyof SignPayload>(key: K, value: SignPayload[K]) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -132,16 +157,60 @@ export default function PetitionPage() {
               </p>
 
               <Show when={p().goalCount}>
-                <Progress
-                  value={Math.min(100, Math.round((p().signatureCount / (p().goalCount ?? 1)) * 100))}
-                  class="mb-6"
-                />
+                <section class="mb-6 rounded-lg border bg-card p-4">
+                  <div class="mb-2 flex items-end justify-between gap-4">
+                    <div>
+                      <p class="text-2xl font-bold">
+                        {p().signatureCount.toLocaleString()} von {p().goalCount?.toLocaleString()} Unterschriften
+                      </p>
+                      <p class="text-sm text-muted-foreground">
+                        {progress()}% des Ziels erreicht
+                      </p>
+                    </div>
+                  </div>
+                  <Progress value={progress() ?? 0} />
+                </section>
               </Show>
 
               <div
                 class="petition-body mb-8 leading-relaxed"
                 innerHTML={p().body}
               />
+
+              <Show when={p().allowComments && p().publicComments?.length}>
+                <section class="mt-8 rounded-lg border border-border bg-card p-6">
+                  <h2 class="text-xl font-semibold">{t('app.supporter_voices')}</h2>
+                  <div class="mt-4 space-y-4">
+                    <For each={(p().publicComments ?? []).slice(0, 5)}>
+                      {(entry) => (
+                        <blockquote class="border-l-4 border-primary pl-4 text-sm">
+                          <p>{entry.comment}</p>
+                          <footer class="mt-2 text-muted-foreground">
+                            {entry.fullName ?? t('app.anonymous')}{entry.city ? `, ${entry.city}` : ''}
+                          </footer>
+                        </blockquote>
+                      )}
+                    </For>
+                  </div>
+                </section>
+              </Show>
+
+              <Show when={avatarCount() > 0}>
+                <section class="mt-8 mb-8 rounded-lg border border-border bg-card p-6">
+                  <h2 class="text-lg font-bold mb-3">{t('app.virtual_crowd_title')}</h2>
+                  <div class="grid grid-cols-12 gap-2" aria-label={`${p().signatureCount} Unterstützende`}>
+                    <For each={Array.from({ length: avatarCount() })}>
+                      {(_, index) => (
+                        <div
+                          class="h-4 w-4 rounded-full bg-primary/80"
+                          title={t('app.virtual_crowd_tooltip', { count: index() + 1 })}
+                        />
+                      )}
+                    </For>
+                  </div>
+                  <p class="mt-3 text-sm text-muted-foreground">{t('app.virtual_crowd_description')}</p>
+                </section>
+              </Show>
 
               <Show when={!updates.loading}>
                 <section class="mb-8">
@@ -327,6 +396,9 @@ export default function PetitionPage() {
                           onInput={(e) => update('email', e.currentTarget.value)}
                         />
                       </TextField>
+                      <p class="text-sm text-muted-foreground">
+                        Deine Unterschrift zählt erst, nachdem du den Bestätigungslink in der E-Mail angeklickt hast.
+                      </p>
 
                       <div class="grid grid-cols-2 gap-3">
                         <TextField>
@@ -385,6 +457,7 @@ export default function PetitionPage() {
                         </label>
                       </div>
 
+                      <p class="text-xs text-muted-foreground">{t('app.signature_withdrawal_note')}</p>
                       <p class="text-xs text-muted-foreground">
                         {t('app.by_signing_you_agree_to_our')}{' '}
                         <a href="/privacy" target="_blank" class="underline">{t('app.privacy_policy')}</a>.
@@ -404,4 +477,20 @@ export default function PetitionPage() {
       </Show>
     </div>
   )
+}
+
+function stripHtml(value: string) {
+  const el = document.createElement('div')
+  el.innerHTML = value
+  return el.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+}
+
+function setMeta(key: string, content: string, attr: 'name' | 'property' = 'name') {
+  let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`)
+  if (!el) {
+    el = document.createElement('meta')
+    el.setAttribute(attr, key)
+    document.head.appendChild(el)
+  }
+  el.content = content
 }

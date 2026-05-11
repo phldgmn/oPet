@@ -3,7 +3,7 @@ import { A } from '@solidjs/router'
 import { api, Petition } from '@/lib/api.js'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TextField, TextFieldInput } from '@/components/ui/text-field'
@@ -33,9 +33,17 @@ export default function Home() {
 
   return (
     <div>
-      <section class="text-center py-12 pb-8">
-        <h1 class="text-4xl font-extrabold mb-3">{t('app.make_your_voice_heard')}</h1>
-        <p class="text-lg text-muted-foreground max-w-xl mx-auto mb-8">{t('app.browse_active_petitions_and_add_your_signature_to_causes_that_matter')}</p>
+      <section class="py-12">
+        <p class="text-sm font-medium uppercase tracking-wide text-primary">oPet</p>
+        <h1 class="mt-2 text-4xl font-bold tracking-tight">
+          Aktuelle Kampagnen
+        </h1>
+        <p class="mt-4 max-w-2xl text-muted-foreground">
+          Unterstütze aktive Petitionen, verfolge ihren Fortschritt und teile Anliegen, die mehr Stimmen brauchen.
+        </p>
+      </section>
+
+      <section class="pb-8">
         <form onSubmit={handleSearch} class="max-w-lg mx-auto flex gap-2">
           <TextField class="flex-1">
             <TextFieldInput
@@ -49,6 +57,7 @@ export default function Home() {
         </form>
       </section>
 
+      {/* Loading state */}
       <Show when={data.loading}>
         <div class="grid gap-5" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr))">
           <For each={[1, 2, 3]}>{() => (
@@ -65,15 +74,18 @@ export default function Home() {
         </div>
       </Show>
 
+      {/* Error state */}
       <Show when={data.error}>
         <Alert variant="destructive">
           <AlertDescription>{t('app.failed_to_load_petitions_please_try_again')}</AlertDescription>
         </Alert>
       </Show>
 
+      {/* Success state */}
       <Show when={data()}>
         {(result) => (
           <>
+            {/* Empty state */}
             <Show when={result().petitions.length === 0}>
               <Alert>
                 <AlertDescription>
@@ -84,49 +96,38 @@ export default function Home() {
               </Alert>
             </Show>
 
-            <div class="grid gap-5" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr))">
+            {/* Petition cards grid */}
+            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               <For each={result().petitions}>
                 {(petition) => (
-                  <A href={`/petition/${petition.slug}`} class="no-underline text-inherit">
-                    <Card class="h-full cursor-pointer transition-shadow hover:shadow-md">
-                      <Show when={petition.thumbnailImageUrl || petition.imageUrl}>
-                        <img
-                          src={petition.thumbnailImageUrl ?? petition.imageUrl ?? undefined}
-                          alt={petition.title}
-                          class="h-40 w-full rounded-t-lg object-cover"
-                        />
-                      </Show>
-                      <CardHeader class="pb-2">
-                        <CardTitle class="text-base leading-snug">{petition.title}</CardTitle>
-                        <p class="text-sm text-muted-foreground">
-                          {t('app.to')}: <strong>{petition.recipientName}</strong>
-                        </p>
-                      </CardHeader>
-                      <CardContent>
-                        <Show when={petition.summary}>
-                          <div class="text-sm line-clamp-3 mb-3 text-muted-foreground" innerHTML={petition.summary} />
-                        </Show>
+                  <a
+                    href={`/petition/${petition.slug}`}
+                    class="rounded-xl border border-border bg-card p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <h2 class="text-xl font-semibold text-card-foreground">
+                      {petition.title}
+                    </h2>
+                    <div class="mt-2 line-clamp-3 text-sm text-muted-foreground" innerHTML={petition.summary} />
+                    <div class="mt-4">
+                      <div class="mb-2 flex items-center justify-between text-sm">
+                        <span class="font-medium">{petition.signatureCount.toLocaleString()} Unterschriften</span>
                         <Show when={petition.goalCount}>
-                          <Progress
-                            value={signaturePct(petition) ?? 0}
-                            class="mb-2"
-                          />
+                          {(goal) => <span class="text-muted-foreground">Ziel: {goal().toLocaleString()}</span>}
                         </Show>
-                      </CardContent>
-                      <CardFooter class="flex items-center gap-2 pt-0">
-                        <StatusBadge status={petition.status as PetitionStatus} type="petition" />
-                        <span class="text-xs text-muted-foreground ml-auto">
-                          {petition.goalCount
-                            ? `${petition.signatureCount} / ${petition.goalCount}`
-                            : t('app.var_signatures', { count: petition.signatureCount })}
-                        </span>
-                      </CardFooter>
-                    </Card>
-                  </A>
+                      </div>
+                      <Show when={signaturePct(petition) !== null}>
+                        <Progress value={signaturePct(petition) ?? 0} />
+                      </Show>
+                    </div>
+                    <div class="mt-4 text-sm font-medium text-primary">
+                      Jetzt unterschreiben →
+                    </div>
+                  </a>
                 )}
               </For>
             </div>
 
+            {/* Pagination controls */}
             <PaginationControls
               page={page()}
               totalPages={result().totalPages}

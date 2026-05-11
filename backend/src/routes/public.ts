@@ -72,13 +72,33 @@ publicRoutes.get('/petitions', async (c) => {
 publicRoutes.get('/petitions/:slug', async (c) => {
   const petition = await prisma.petition.findUnique({
     where: { slug: c.req.param('slug') },
-    include: {
-      _count: { select: { signatures: { where: { verified: true, withdrawn: false } } } },
-      signatures: {
-        where: { verified: true, withdrawn: false, publicOptIn: true },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-        select: { fullName: true, city: true, country: true, comment: true, createdAt: true },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      summary: true,
+      body: true,
+      imageUrl: true,
+      thumbnailImageUrl: true,
+      recipientName: true,
+      recipientDescription: true,
+      status: true,
+      goalCount: true,
+      startsAt: true,
+      endsAt: true,
+      createdAt: true,
+      allowPublicNames: true,
+      allowComments: true,
+      requireVerification: true,
+      _count: {
+        select: {
+          signatures: {
+            where: {
+              verified: true,
+              withdrawn: false,
+            },
+          },
+        },
       },
     },
   })
@@ -87,7 +107,33 @@ publicRoutes.get('/petitions/:slug', async (c) => {
     return c.json({ error: t(c, 'api.not_found') }, 404)
   }
 
-  return c.json({ ...petition, signatureCount: petition._count.signatures })
+  let publicComments = []
+  if (petition.allowComments) {
+    publicComments = await prisma.signature.findMany({
+      where: {
+        petitionId: petition.id,
+        verified: true,
+        withdrawn: false,
+        publicOptIn: true,
+        comment: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        fullName: true,
+        city: true,
+        comment: true,
+        createdAt: true,
+      },
+    })
+  }
+
+  const { _count, ...petitionWithoutCount } = petition
+  return c.json({
+    ...petitionWithoutCount,
+    signatureCount: petition._count.signatures,
+    publicComments,
+  })
 })
 
 publicRoutes.get('/petitions/:slug/updates', async (c) => {

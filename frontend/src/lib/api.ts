@@ -40,6 +40,13 @@ export class ApiError extends Error {
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
+export interface PublicComment {
+  fullName: string | null
+  city: string | null
+  comment: string
+  createdAt: string
+}
+
 export interface Petition {
   id: string
   slug: string
@@ -60,6 +67,7 @@ export interface Petition {
   createdAt: string
   signatureCount: number
   signatures?: PublicSignature[]
+  publicComments?: PublicComment[]
 }
 
 export interface PublicSignature {
@@ -107,9 +115,9 @@ export interface SignPayload {
 export const api = {
   getPetitions: (params?: { search?: string; page?: number; limit?: number }) => {
     const q = new URLSearchParams()
-    if (params?.search) q.set('app.search', params.search)
-    if (params?.page) q.set('app.page', String(params.page))
-    if (params?.limit) q.set('app.limit', String(params.limit))
+    if (params?.search) q.set('search', params.search)
+    if (params?.page) q.set('page', String(params.page))
+    if (params?.limit) q.set('limit', String(params.limit))
     return request<{ petitions: Petition[]; total: number; page: number; totalPages: number }>(
       `/api/petitions?${q}`,
     )
@@ -119,7 +127,7 @@ export const api = {
 
   getPetitionUpdates: (slug: string, params?: { includeVersionHistory?: boolean }) => {
     const q = new URLSearchParams()
-    if (params?.includeVersionHistory) q.set('app.includeversionhistory', 'true')
+    if (params?.includeVersionHistory) q.set('includeVersionHistory', 'true')
     return request<{ updates: PublicPetitionUpdate[] }>(`/api/petitions/${slug}/updates?${q}`)
   },
 
