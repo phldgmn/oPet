@@ -6,11 +6,38 @@ import { generateToken, hashToken } from '../lib/tokens.js'
 import { sendVerificationEmail, sendWithdrawalEmail } from '../lib/email.js'
 import { createAuditLog } from '../lib/audit.js'
 import { getLocale, t } from '../lib/i18n.js'
+import { evaluateSignatureTrust, normalizeEmail } from '../lib/signatureTrust.js'
 
 export const publicRoutes = new Hono()
 
 const dbUrl = (process.env.DATABASE_URL ?? '').trim()
 const isPostgres = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')
+
+// ── Public site settings and news ─────────────────────────────────────────────
+
+publicRoutes.get('/site-settings', async (c) => {
+  const settings = await prisma.siteSettings.upsert({
+    where: { id: 'default' },
+    update: {},
+    create: { id: 'default' },
+  })
+  return c.json(settings)
+})
+
+publicRoutes.get('/news', async (c) => {
+  const status = c.req.query('status') ?? 'approved'
+  const allowedStatus = status === 'approved' ? 'approved' : 'approved'
+  const limit = Math.min(20, Math.max(1, parseInt(c.req.query('limit') ?? '6')))
+
+  const items = await prisma.newsItem.findMany({
+    where: { status: allowedStatus },
+    take: limit,
+    orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+    include: { source: { select: { id: true, name: true } } },
+  })
+
+  return c.json({ items })
+})
 
 // ── Petition listing ──────────────────────────────────────────────────────────
 
@@ -211,6 +238,8 @@ const signSchema = z.object({
   publicOptIn: z.boolean().default(false),
   updatesOptIn: z.boolean().default(false),
   recipientShareOptIn: z.boolean().default(false),
+  website: z.string().max(200).optional(),
+  formStartedAt: z.number().int().positive().optional(),
 })
 
 publicRoutes.post('/petitions/:slug/sign', rateLimit(10, 60_000), async (c) => {
@@ -226,7 +255,24 @@ publicRoutes.post('/petitions/:slug/sign', rateLimit(10, 60_000), async (c) => {
     return c.json({ error: t(c, 'api.validation_error'), details: parsed.error.flatten() }, 422)
   }
 
-  const data = parsed.data
+  const data = { ...parsed.data, email: normalizeEmail(parsed.data.email) }
+  const trust = evaluateSignatureTrust(data)
+  if (!trust.ok && trust.reason === 'honeypot') {
+    await createAuditLog('signature.rejected.honeypot', 'Petition', petition.id, undefined, {
+      petitionId: petition.id,
+      email: data.email,
+    })
+    return c.json({ error: t(c, 'api.validation_error') }, 422)
+  }
+
+  if (!trust.ok && trust.reason === 'too_fast') {
+    await createAuditLog('signature.rejected.too_fast', 'Petition', petition.id, undefined, {
+      petitionId: petition.id,
+      email: data.email,
+      formAgeMs: trust.formAgeMs,
+    })
+    return c.json({ error: t(c, 'api.validation_error') }, 422)
+  }
 
   // Check for existing signature
   const existing = await prisma.signature.findUnique({
@@ -265,6 +311,13 @@ publicRoutes.post('/petitions/:slug/sign', rateLimit(10, 60_000), async (c) => {
       return c.json({ message: t(c, 'api.re_signed_please_verify_your_email') })
     }
 
+    await prisma.signatureRiskSignal.create({
+      data: {
+        signatureId: existing.id,
+        reason: 'duplicate_email_attempt',
+        metadataJson: JSON.stringify({ attemptedAt: new Date().toISOString() }),
+      },
+    })
     return c.json({ error: t(c, 'api.you_have_already_signed_this_petition') }, 409)
   }
 

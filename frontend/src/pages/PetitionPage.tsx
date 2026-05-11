@@ -12,6 +12,7 @@ import { StatusBadge, type PetitionStatus } from '@/components/StatusBadge'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import { t } from '@/lib/i18n'
 import { buildShareText, buildShareUrl } from '@/lib/share'
+import { VirtualDemonstration } from '@/components/VirtualDemonstration'
 
 export default function PetitionPage() {
   const params = useParams<{ slug: string }>()
@@ -33,7 +34,10 @@ export default function PetitionPage() {
     publicOptIn: false,
     updatesOptIn: false,
     recipientShareOptIn: false,
+    website: '',
+    formStartedAt: Date.now(),
   })
+  const [copied, setCopied] = createSignal(false)
   const [submitting, setSubmitting] = createSignal(false)
   const [error, setError] = createSignal<string | null>(null)
   const progress = createMemo(() => {
@@ -41,17 +45,23 @@ export default function PetitionPage() {
     if (!p?.goalCount) return null
     return Math.min(100, Math.round((p.signatureCount / p.goalCount) * 100))
   })
-  const avatarCount = createMemo(() => Math.min(120, Math.max(0, petition()?.signatureCount ?? 0)))
   const shareText = createMemo(() => {
     const p = petition()
     return p ? buildShareText(p) : ''
   })
+  const shareUrl = createMemo(() => buildShareUrl(params.slug))
+  const shareLinks = createMemo(() => ({
+    whatsapp: `https://wa.me/?text=${encodeURIComponent(`${shareText()} ${shareUrl()}`)}`,
+    email: `mailto:?subject=${encodeURIComponent('Petition unterstützen')}&body=${encodeURIComponent(`${shareText()}\n\n${shareUrl()}`)}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl())}`,
+    x: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText())}&url=${encodeURIComponent(shareUrl())}`,
+  }))
 
   createEffect(() => {
     const p = petition()
     if (!p) return
     const description = stripHtml(p.summary || p.body).slice(0, 160)
-    document.title = `${p.title} | oPet`
+    document.title = `${p.title} | For One Change`
     setMeta('description', description)
     setMeta('og:title', p.title, 'property')
     setMeta('og:description', shareText() || description, 'property')
@@ -98,6 +108,12 @@ export default function PetitionPage() {
     }
   }
 
+  async function handleCopyShare() {
+    await navigator.clipboard.writeText(`${shareText()} ${shareUrl()}`)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   return (
     <div>
       <Show when={petition.loading}>
@@ -116,23 +132,62 @@ export default function PetitionPage() {
 
       <Show when={petition()}>
         {(p) => (
-          <div class="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div class="space-y-8">
+            <section class="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+              <div class="flex min-h-[360px] flex-col justify-end overflow-hidden rounded-lg border border-border bg-card">
+                <Show when={p().imageUrl}>
+                  <img
+                    src={p().imageUrl ?? undefined}
+                    alt={p().title}
+                    class="h-56 w-full object-cover md:h-72"
+                  />
+                </Show>
+                <div class="p-6">
+                  <div class="mb-3 flex flex-wrap items-center gap-3">
+                    <StatusBadge status={p().status as PetitionStatus} type="petition" />
+                    <span class="text-sm font-medium text-primary">For One Change</span>
+                  </div>
+                  <h1 class="max-w-4xl break-words text-4xl font-extrabold tracking-tight md:text-5xl">{p().title}</h1>
+                  <Show when={p().summary}>
+                    <div class="petition-summary mt-4 max-w-3xl text-lg text-muted-foreground" innerHTML={p().summary} />
+                  </Show>
+                </div>
+              </div>
+
+              <Card class="self-stretch">
+                <CardHeader>
+                  <CardTitle>Aktueller Stand</CardTitle>
+                </CardHeader>
+                <CardContent class="space-y-5">
+                  <div>
+                    <p class="text-4xl font-extrabold text-primary">{p().signatureCount.toLocaleString()}</p>
+                    <p class="text-sm text-muted-foreground">bestätigte Unterschriften</p>
+                  </div>
+                  <Show when={p().goalCount}>
+                    <div>
+                      <div class="mb-2 flex justify-between text-sm">
+                        <span>{progress()}% erreicht</span>
+                        <span>Ziel: {p().goalCount?.toLocaleString()}</span>
+                      </div>
+                      <Progress value={progress() ?? 0} />
+                    </div>
+                  </Show>
+                  <p class="rounded-md bg-accent px-3 py-2 text-sm text-accent-foreground">
+                    Jede Stimme zählt erst nach der Bestätigung per E-Mail. So bleibt die Petition niedrigschwellig und besser gegen Missbrauch geschützt.
+                  </p>
+                  <div class="grid grid-cols-2 gap-2">
+                    <Button variant="outline" as="a" href={shareLinks().whatsapp} target="_blank" rel="noopener noreferrer">WhatsApp</Button>
+                    <Button variant="outline" as="a" href={shareLinks().facebook} target="_blank" rel="noopener noreferrer">Facebook</Button>
+                    <Button variant="outline" as="a" href={shareLinks().x} target="_blank" rel="noopener noreferrer">X</Button>
+                    <Button variant="outline" onClick={handleCopyShare}>{copied() ? t('app.copied') : t('app.copy_link')}</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            <div class="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
             {/* Petition details */}
             <div class="min-w-0">
-              <div class="mb-3">
-                <StatusBadge status={p().status as PetitionStatus} type="petition" />
-              </div>
-              <h1 class="mb-2 break-words text-3xl font-extrabold">{p().title}</h1>
-              <Show when={p().imageUrl}>
-                <img
-                  src={p().imageUrl ?? undefined}
-                  alt={p().title}
-                  class="mb-4 h-72 w-full rounded-lg border object-cover"
-                />
-              </Show>
-              <Show when={p().summary}>
-                <div class="petition-summary mb-4 text-muted-foreground" innerHTML={p().summary} />
-              </Show>
               <p class="mb-1 text-muted-foreground">
                 {t('app.to')}:{' '}
                 <Show when={p().recipientDescription} fallback={<strong>{p().recipientName}</strong>}>
@@ -155,22 +210,6 @@ export default function PetitionPage() {
                 {t('app.var_signatures', { count: p().signatureCount.toLocaleString() })}
                 <Show when={p().goalCount}> {t('app.of_var_goal', { goal: p().goalCount?.toLocaleString() ?? '' })}</Show>
               </p>
-
-              <Show when={p().goalCount}>
-                <section class="mb-6 rounded-lg border bg-card p-4">
-                  <div class="mb-2 flex items-end justify-between gap-4">
-                    <div>
-                      <p class="text-2xl font-bold">
-                        {p().signatureCount.toLocaleString()} von {p().goalCount?.toLocaleString()} Unterschriften
-                      </p>
-                      <p class="text-sm text-muted-foreground">
-                        {progress()}% des Ziels erreicht
-                      </p>
-                    </div>
-                  </div>
-                  <Progress value={progress() ?? 0} />
-                </section>
-              </Show>
 
               <div
                 class="petition-body mb-8 leading-relaxed"
@@ -195,22 +234,7 @@ export default function PetitionPage() {
                 </section>
               </Show>
 
-              <Show when={avatarCount() > 0}>
-                <section class="mt-8 mb-8 rounded-lg border border-border bg-card p-6">
-                  <h2 class="text-lg font-bold mb-3">{t('app.virtual_crowd_title')}</h2>
-                  <div class="grid grid-cols-12 gap-2" aria-label={`${p().signatureCount} Unterstützende`}>
-                    <For each={Array.from({ length: avatarCount() })}>
-                      {(_, index) => (
-                        <div
-                          class="h-4 w-4 rounded-full bg-primary/80"
-                          title={t('app.virtual_crowd_tooltip', { count: index() + 1 })}
-                        />
-                      )}
-                    </For>
-                  </div>
-                  <p class="mt-3 text-sm text-muted-foreground">{t('app.virtual_crowd_description')}</p>
-                </section>
-              </Show>
+              <VirtualDemonstration signatureCount={p().signatureCount} comments={p().publicComments ?? []} />
 
               <Show when={!updates.loading}>
                 <section class="mb-8">
@@ -377,6 +401,16 @@ export default function PetitionPage() {
                     }
                   >
                     <form onSubmit={handleSubmit} class="space-y-4">
+                      <TextField class="hidden" aria-hidden="true">
+                        <TextFieldLabel>Website</TextFieldLabel>
+                        <TextFieldInput
+                          type="text"
+                          tabindex="-1"
+                          autocomplete="off"
+                          value={form().website ?? ''}
+                          onInput={(e) => update('website', e.currentTarget.value)}
+                        />
+                      </TextField>
                       <TextField>
                         <TextFieldLabel>{t('app.full_name')}</TextFieldLabel>
                         <TextFieldInput
@@ -472,6 +506,7 @@ export default function PetitionPage() {
                 </CardContent>
               </Card>
             </aside>
+          </div>
           </div>
         )}
       </Show>

@@ -6,6 +6,7 @@ import { serveStatic } from 'hono/bun'
 import { publicRoutes } from './routes/public.js'
 import { adminRoutes } from './routes/admin.js'
 import { t } from './lib/i18n.js'
+import { importNewsFromEnabledSources } from './lib/news.js'
 
 const app = new Hono()
 
@@ -29,6 +30,15 @@ app.onError((err, c) => {
 
 const port = parseInt(process.env.PORT || '3001')
 console.log(`Server starting on port ${port}`)
+
+const newsImportIntervalMinutes = parseInt(process.env.NEWS_IMPORT_INTERVAL_MINUTES || '0')
+if (newsImportIntervalMinutes > 0) {
+  setInterval(() => {
+    importNewsFromEnabledSources()
+      .then((result) => console.log('News import completed', result))
+      .catch((err) => console.error('News import failed', err))
+  }, newsImportIntervalMinutes * 60_000)
+}
 
 export default {
   port,

@@ -20,6 +20,8 @@ export default function Home() {
     () => ({ search: query(), page: page() }),
     (params) => api.getPetitions(params),
   )
+  const [settings] = createResource(api.getSiteSettings)
+  const [news] = createResource(() => api.getNews({ limit: 4 }))
 
   function handleSearch(e: Event) {
     e.preventDefault()
@@ -33,17 +35,17 @@ export default function Home() {
 
   return (
     <div>
-      <section class="py-12">
-        <p class="text-sm font-medium uppercase tracking-wide text-primary">oPet</p>
-        <h1 class="mt-2 text-4xl font-bold tracking-tight">
-          Aktuelle Kampagnen
+      <section class="-mx-4 border-b border-border bg-background px-4 pb-10 pt-8 md:-mx-8 md:px-8">
+        <p class="text-sm font-semibold uppercase tracking-wide text-primary">4CHANGE.NOW</p>
+        <h1 class="mt-2 max-w-4xl text-4xl font-extrabold tracking-tight md:text-6xl">
+          {settings()?.publicSiteTitle ?? 'For One Change'}
         </h1>
-        <p class="mt-4 max-w-2xl text-muted-foreground">
-          Unterstütze aktive Petitionen, verfolge ihren Fortschritt und teile Anliegen, die mehr Stimmen brauchen.
+        <p class="mt-4 max-w-2xl text-lg text-muted-foreground">
+          {settings()?.publicClaim ?? 'Gemeinsam Veränderung sichtbar machen'}: unterschreiben, bestätigen, teilen.
         </p>
       </section>
 
-      <section class="pb-8">
+      <section class="py-8">
         <form onSubmit={handleSearch} class="max-w-lg mx-auto flex gap-2">
           <TextField class="flex-1">
             <TextFieldInput
@@ -56,6 +58,33 @@ export default function Home() {
           <Button type="submit">{t('app.search_2')}</Button>
         </form>
       </section>
+
+      <Show when={(news()?.items.length ?? 0) > 0}>
+        <section class="mb-10">
+          <div class="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <p class="text-sm font-semibold uppercase tracking-wide text-primary">Pressespiegel</p>
+              <h2 class="text-2xl font-bold">Aktuelle Meldungen</h2>
+            </div>
+          </div>
+          <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <For each={news()?.items}>
+              {(item) => (
+                <a href={item.url} target="_blank" rel="noopener noreferrer" class="rounded-lg border border-border bg-card p-4 transition hover:-translate-y-0.5 hover:shadow-md">
+                  <p class="text-xs font-medium uppercase text-primary">{item.source?.name ?? 'Quelle'}</p>
+                  <h3 class="mt-2 line-clamp-3 font-semibold">{item.title}</h3>
+                  <Show when={item.excerpt}>
+                    <p class="mt-2 line-clamp-3 text-sm text-muted-foreground">{item.excerpt}</p>
+                  </Show>
+                  <Show when={item.publishedAt}>
+                    <p class="mt-3 text-xs text-muted-foreground">{new Date(item.publishedAt!).toLocaleDateString()}</p>
+                  </Show>
+                </a>
+              )}
+            </For>
+          </div>
+        </section>
+      </Show>
 
       {/* Loading state */}
       <Show when={data.loading}>

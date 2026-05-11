@@ -11,10 +11,11 @@ export default function SuccessPage() {
   const params = useParams<{ slug: string }>()
   const [copied, setCopied] = createSignal(false)
   const [petition] = createResource(() => params.slug, api.getPetition)
+  const [settings] = createResource(api.getSiteSettings)
 
   const shareText = createMemo(() => {
     const p = petition()
-    return p ? buildShareText(p) : 'Ich habe unterschrieben. Mach doch auch mit!'
+    return p ? buildShareText(p) : (settings()?.defaultShareText ?? 'Ich habe unterschrieben. Mach doch auch mit!')
   })
   const shareUrl = createMemo(() => buildShareUrl(params.slug))
 
@@ -39,10 +40,13 @@ export default function SuccessPage() {
     <div class="max-w-lg mx-auto mt-16 text-center">
       <Card>
         <CardContent class="pt-8 pb-8 space-y-6">
-          <div class="text-6xl">✅</div>
+          <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary text-3xl text-primary-foreground">✓</div>
           <h1>Bitte bestätige deine E-Mail-Adresse</h1>
           <p>
             Wir haben dir einen Bestätigungslink geschickt. Erst nach dem Klick auf diesen Link wird deine Unterschrift gezählt.
+          </p>
+          <p class="rounded-md bg-accent px-3 py-2 text-sm text-accent-foreground">
+            Danach erscheint deine Stimme in der virtuellen Demonstration und im Fortschritt der Kampagne.
           </p>
           <div class="space-y-4">
             <h2 class="text-lg font-semibold">{t('app.share')}</h2>

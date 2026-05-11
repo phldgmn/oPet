@@ -70,6 +70,39 @@ export interface Petition {
   publicComments?: PublicComment[]
 }
 
+export interface SiteSettings {
+  id: string
+  publicSiteTitle: string
+  publicClaim: string
+  logoUrl?: string | null
+  defaultShareText: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface NewsSource {
+  id: string
+  name: string
+  feedUrl: string
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+  _count?: { items: number }
+}
+
+export interface NewsItem {
+  id: string
+  sourceId: string
+  title: string
+  url: string
+  excerpt?: string | null
+  publishedAt?: string | null
+  status: 'draft' | 'approved' | 'hidden'
+  createdAt: string
+  updatedAt: string
+  source?: { id: string; name: string }
+}
+
 export interface PublicSignature {
   fullName: string
   city?: string
@@ -110,9 +143,19 @@ export interface SignPayload {
   publicOptIn: boolean
   updatesOptIn: boolean
   recipientShareOptIn: boolean
+  website?: string
+  formStartedAt?: number
 }
 
 export const api = {
+  getSiteSettings: () => request<SiteSettings>('/api/site-settings'),
+
+  getNews: (params?: { limit?: number }) => {
+    const q = new URLSearchParams()
+    if (params?.limit) q.set('limit', String(params.limit))
+    return request<{ items: NewsItem[] }>(`/api/news?${q}`)
+  },
+
   getPetitions: (params?: { search?: string; page?: number; limit?: number }) => {
     const q = new URLSearchParams()
     if (params?.search) q.set('search', params.search)
@@ -183,6 +226,15 @@ export interface Signature {
   createdAt: string
   verifiedAt?: string
   withdrawnAt?: string
+  riskSignals?: SignatureRiskSignal[]
+}
+
+export interface SignatureRiskSignal {
+  id: string
+  signatureId: string
+  reason: string
+  metadataJson?: string | null
+  createdAt: string
 }
 
 export interface AdminPetitionUpdate {
@@ -236,9 +288,9 @@ export const adminApi = {
 
   getPetitions: (token: string, params?: { page?: number; limit?: number; status?: string }) => {
     const q = new URLSearchParams()
-    if (params?.page) q.set('app.page', String(params.page))
-    if (params?.limit) q.set('app.limit', String(params.limit))
-    if (params?.status) q.set('app.status', params.status)
+    if (params?.page) q.set('page', String(params.page))
+    if (params?.limit) q.set('limit', String(params.limit))
+    if (params?.status) q.set('status', params.status)
     return request<{ petitions: AdminPetition[]; total: number; totalPages: number }>(
       `/api/admin/petitions?${q}`,
       {},
@@ -316,9 +368,9 @@ export const adminApi = {
     params?: { page?: number; verified?: boolean; withdrawn?: boolean },
   ) => {
     const q = new URLSearchParams()
-    if (params?.page) q.set('app.page', String(params.page))
-    if (params?.verified !== undefined) q.set('app.verified', String(params.verified))
-    if (params?.withdrawn !== undefined) q.set('app.withdrawn', String(params.withdrawn))
+    if (params?.page) q.set('page', String(params.page))
+    if (params?.verified !== undefined) q.set('verified', String(params.verified))
+    if (params?.withdrawn !== undefined) q.set('withdrawn', String(params.withdrawn))
     return request<{ signatures: Signature[]; total: number; totalPages: number }>(
       `/api/admin/petitions/${petitionId}/signatures?${q}`,
       {},
@@ -328,6 +380,36 @@ export const adminApi = {
 
   removeSignature: (token: string, id: string) =>
     request<{ message: string }>(`/api/admin/signatures/${id}`, { method: 'DELETE' }, token),
+
+  getSiteSettings: (token: string) =>
+    request<SiteSettings>('/api/admin/site-settings', {}, token),
+
+  updateSiteSettings: (token: string, data: Pick<SiteSettings, 'publicSiteTitle' | 'publicClaim' | 'defaultShareText'> & { logoUrl?: string | null }) =>
+    request<SiteSettings>('/api/admin/site-settings', { method: 'PUT', body: JSON.stringify(data) }, token),
+
+  getNewsSources: (token: string) =>
+    request<{ sources: NewsSource[] }>('/api/admin/news/sources', {}, token),
+
+  createNewsSource: (token: string, data: { name: string; feedUrl: string; enabled: boolean }) =>
+    request<NewsSource>('/api/admin/news/sources', { method: 'POST', body: JSON.stringify(data) }, token),
+
+  updateNewsSource: (token: string, id: string, data: Partial<{ name: string; feedUrl: string; enabled: boolean }>) =>
+    request<NewsSource>(`/api/admin/news/sources/${id}`, { method: 'PUT', body: JSON.stringify(data) }, token),
+
+  deleteNewsSource: (token: string, id: string) =>
+    request<{ message: string }>(`/api/admin/news/sources/${id}`, { method: 'DELETE' }, token),
+
+  getNewsItems: (token: string, params?: { status?: string }) => {
+    const q = new URLSearchParams()
+    if (params?.status) q.set('status', params.status)
+    return request<{ items: NewsItem[] }>(`/api/admin/news/items?${q}`, {}, token)
+  },
+
+  updateNewsItemStatus: (token: string, id: string, status: NewsItem['status']) =>
+    request<NewsItem>(`/api/admin/news/items/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }, token),
+
+  importNews: (token: string) =>
+    request<{ imported: number; skipped: number; sources: number }>('/api/admin/news/import', { method: 'POST' }, token),
 
   uploadImage: async (token: string, file: File) => {
     const body = new FormData()

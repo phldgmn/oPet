@@ -8,6 +8,7 @@ import { authMiddleware, signToken } from '../middleware/auth.js'
 import { rateLimit } from '../middleware/rateLimit.js'
 import { createAuditLog } from '../lib/audit.js'
 import { exportSignatures } from '../lib/export.js'
+import { importNewsFromEnabledSources } from '../lib/news.js'
 import type { AppVariables } from '../types.js'
 import { t } from '../lib/i18n.js'
 
@@ -204,6 +205,144 @@ const petitionSchema = z.object({
   requireVerification: z.boolean().default(true),
   startsAt: z.string().datetime().optional(),
   endsAt: z.string().datetime().optional(),
+})
+
+// ── Site Settings ─────────────────────────────────────────────────────────────
+
+const siteSettingsSchema = z.object({
+  publicSiteTitle: z.string().min(2).max(120),
+  publicClaim: z.string().min(2).max(200),
+  logoUrl: z.string().max(2048).nullable().optional(),
+  defaultShareText: z.string().min(2).max(280),
+})
+
+adminRoutes.get('/site-settings', async (c) => {
+  const user = c.get('user')
+  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+
+  const settings = await prisma.siteSettings.upsert({
+    where: { id: 'default' },
+    update: {},
+    create: { id: 'default' },
+  })
+  return c.json(settings)
+})
+
+adminRoutes.put('/site-settings', async (c) => {
+  const user = c.get('user')
+  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+
+  const body = await c.req.json().catch(() => null)
+  const parsed = siteSettingsSchema.safeParse(body)
+  if (!parsed.success) return c.json({ error: t(c, 'api.validation_error'), details: parsed.error.flatten() }, 422)
+
+  const settings = await prisma.siteSettings.upsert({
+    where: { id: 'default' },
+    update: parsed.data,
+    create: { id: 'default', ...parsed.data },
+  })
+
+  await createAuditLog('site_settings.updated', 'SiteSettings', settings.id, user.userId)
+  return c.json(settings)
+})
+
+// ── News Radar ────────────────────────────────────────────────────────────────
+
+const newsSourceSchema = z.object({
+  name: z.string().min(2).max(160),
+  feedUrl: z.string().url().max(2048),
+  enabled: z.boolean().default(true),
+})
+
+const newsItemStatusSchema = z.object({
+  status: z.enum(['draft', 'approved', 'hidden']),
+})
+
+adminRoutes.get('/news/sources', async (c) => {
+  const user = c.get('user')
+  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+
+  const sources = await prisma.newsSource.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: { _count: { select: { items: true } } },
+  })
+  return c.json({ sources })
+})
+
+adminRoutes.post('/news/sources', async (c) => {
+  const user = c.get('user')
+  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+
+  const body = await c.req.json().catch(() => null)
+  const parsed = newsSourceSchema.safeParse(body)
+  if (!parsed.success) return c.json({ error: t(c, 'api.validation_error'), details: parsed.error.flatten() }, 422)
+
+  const source = await prisma.newsSource.create({ data: parsed.data })
+  await createAuditLog('news_source.created', 'NewsSource', source.id, user.userId)
+  return c.json(source, 201)
+})
+
+adminRoutes.put('/news/sources/:id', async (c) => {
+  const user = c.get('user')
+  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+
+  const body = await c.req.json().catch(() => null)
+  const parsed = newsSourceSchema.partial().safeParse(body)
+  if (!parsed.success) return c.json({ error: t(c, 'api.validation_error'), details: parsed.error.flatten() }, 422)
+
+  const source = await prisma.newsSource.update({ where: { id: c.req.param('id') }, data: parsed.data })
+  await createAuditLog('news_source.updated', 'NewsSource', source.id, user.userId)
+  return c.json(source)
+})
+
+adminRoutes.delete('/news/sources/:id', async (c) => {
+  const user = c.get('user')
+  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+
+  await prisma.newsSource.delete({ where: { id: c.req.param('id') } })
+  await createAuditLog('news_source.deleted', 'NewsSource', c.req.param('id'), user.userId)
+  return c.json({ message: 'News source deleted' })
+})
+
+adminRoutes.get('/news/items', async (c) => {
+  const user = c.get('user')
+  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+
+  const status = c.req.query('status')
+  const where = status && ['draft', 'approved', 'hidden'].includes(status) ? { status } : undefined
+  const items = await prisma.newsItem.findMany({
+    where,
+    take: 100,
+    orderBy: [{ createdAt: 'desc' }],
+    include: { source: { select: { id: true, name: true } } },
+  })
+  return c.json({ items })
+})
+
+adminRoutes.put('/news/items/:id/status', async (c) => {
+  const user = c.get('user')
+  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+
+  const body = await c.req.json().catch(() => null)
+  const parsed = newsItemStatusSchema.safeParse(body)
+  if (!parsed.success) return c.json({ error: t(c, 'api.validation_error'), details: parsed.error.flatten() }, 422)
+
+  const item = await prisma.newsItem.update({
+    where: { id: c.req.param('id') },
+    data: { status: parsed.data.status },
+    include: { source: { select: { id: true, name: true } } },
+  })
+  await createAuditLog('news_item.status_updated', 'NewsItem', item.id, user.userId, { status: item.status })
+  return c.json(item)
+})
+
+adminRoutes.post('/news/import', async (c) => {
+  const user = c.get('user')
+  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+
+  const result = await importNewsFromEnabledSources()
+  await createAuditLog('news.imported', 'NewsItem', 'bulk', user.userId, result)
+  return c.json(result)
 })
 
 adminRoutes.get('/petitions', async (c) => {
@@ -587,6 +726,9 @@ adminRoutes.get('/petitions/:id/signatures', async (c) => {
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
+      include: {
+        riskSignals: { orderBy: { createdAt: 'desc' }, take: 5 },
+      },
     }),
     prisma.signature.count({ where }),
   ])
@@ -706,10 +848,17 @@ adminRoutes.get('/backup', async (c) => {
     },
     orderBy: { createdAt: 'asc' },
   })
+  const siteSettings = await prisma.siteSettings.findUnique({ where: { id: 'default' } })
+  const newsSources = await prisma.newsSource.findMany({
+    include: { items: { orderBy: { createdAt: 'asc' } } },
+    orderBy: { createdAt: 'asc' },
+  })
 
   const backup = {
     version: 1,
     exportedAt: new Date().toISOString(),
+    siteSettings,
+    newsSources,
     petitions: petitions.map(({ signatures, updates, ...petition }) => ({
       ...petition,
       signatures,
@@ -786,6 +935,23 @@ const backupPetitionSchema = z.object({
 const restoreSchema = z.object({
   version: z.literal(1),
   exportedAt: z.string(),
+  siteSettings: siteSettingsSchema.partial().nullable().optional(),
+  newsSources: z.array(
+    z.object({
+      name: z.string(),
+      feedUrl: z.string(),
+      enabled: z.boolean().default(true),
+      items: z.array(
+        z.object({
+          title: z.string(),
+          url: z.string(),
+          excerpt: z.string().nullable().optional(),
+          publishedAt: z.string().nullable().optional(),
+          status: z.string().default('draft'),
+        }),
+      ).optional().default([]),
+    }),
+  ).optional().default([]),
   petitions: z.array(backupPetitionSchema),
 })
 
@@ -805,6 +971,43 @@ adminRoutes.post('/restore', async (c) => {
   let restoredUpdateVersions = 0
 
   await prisma.$transaction(async (tx) => {
+    if (parsed.data.siteSettings) {
+      await tx.siteSettings.upsert({
+        where: { id: 'default' },
+        update: parsed.data.siteSettings,
+        create: { id: 'default', ...parsed.data.siteSettings },
+      })
+    }
+
+    for (const source of parsed.data.newsSources) {
+      const restoredSource = await tx.newsSource.upsert({
+        where: { feedUrl: source.feedUrl },
+        update: { name: source.name, enabled: source.enabled },
+        create: { name: source.name, feedUrl: source.feedUrl, enabled: source.enabled },
+      })
+
+      for (const item of source.items) {
+        await tx.newsItem.upsert({
+          where: { url: item.url },
+          update: {
+            title: item.title,
+            excerpt: item.excerpt ?? null,
+            publishedAt: item.publishedAt ? new Date(item.publishedAt) : null,
+            status: item.status,
+            sourceId: restoredSource.id,
+          },
+          create: {
+            sourceId: restoredSource.id,
+            title: item.title,
+            url: item.url,
+            excerpt: item.excerpt ?? null,
+            publishedAt: item.publishedAt ? new Date(item.publishedAt) : null,
+            status: item.status,
+          },
+        })
+      }
+    }
+
     for (const petitionData of parsed.data.petitions) {
       const { signatures, updates, createdAt, startsAt, endsAt, ...petitionFields } = petitionData
 

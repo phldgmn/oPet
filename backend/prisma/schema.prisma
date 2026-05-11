@@ -22,6 +22,41 @@ model User {
   petitionUpdateVersionsPublished PetitionUpdateVersion[] @relation("PetitionUpdateVersionPublishedBy")
 }
 
+model SiteSettings {
+  id                 String   @id @default("default")
+  publicSiteTitle    String   @default("For One Change")
+  publicClaim        String   @default("Gemeinsam Veränderung sichtbar machen")
+  logoUrl            String?
+  defaultShareText   String   @default("Ich habe unterschrieben. Mach doch auch mit!")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model NewsSource {
+  id        String     @id @default(uuid())
+  name      String
+  feedUrl   String     @unique
+  enabled   Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  items     NewsItem[]
+}
+
+model NewsItem {
+  id          String     @id @default(uuid())
+  sourceId    String
+  title       String
+  url         String     @unique
+  excerpt     String?
+  publishedAt DateTime?
+  status      String     @default("draft")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  source      NewsSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([status, publishedAt])
+}
+
 model Petition {
   id                    String      @id @default(uuid())
   slug                  String      @unique
@@ -118,8 +153,20 @@ model Signature {
   withdrawnAt           DateTime?
   petition              Petition  @relation(fields: [petitionId], references: [id])
   verificationTokens    VerificationToken[]
+  riskSignals           SignatureRiskSignal[]
 
   @@unique([petitionId, email])
+}
+
+model SignatureRiskSignal {
+  id           String    @id @default(uuid())
+  signatureId  String
+  reason       String
+  metadataJson String?
+  createdAt    DateTime  @default(now())
+  signature    Signature @relation(fields: [signatureId], references: [id], onDelete: Cascade)
+
+  @@index([signatureId, createdAt])
 }
 
 model VerificationToken {

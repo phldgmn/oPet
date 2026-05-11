@@ -156,12 +156,24 @@ export default function AdminLayout(props: AdminLayoutProps) {
       return entries
     }
 
+    if (path === '/admin/settings') {
+      entries.push({ label: 'Auftritt' })
+      return entries
+    }
+
+    if (path === '/admin/news') {
+      entries.push({ label: 'Pressespiegel' })
+      return entries
+    }
+
     return entries
   })
 
   const bottomNavItems = createMemo<[string, string][]>(() => {
     const items: [string, string][] = [['/admin/export', `📤 ${t('app.export')}`]]
     if (isAdmin()) {
+      items.push(['/admin/news', '📰 Pressespiegel'])
+      items.push(['/admin/settings', '🎨 Auftritt'])
       items.push(['/admin/backup', `💾 ${t('app.backup')}`])
       items.push(['/admin/users', `👤 ${t('app.users')}`])
     }

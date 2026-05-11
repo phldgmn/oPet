@@ -2,23 +2,29 @@ import { JSX } from 'solid-js'
 import { A } from '@solidjs/router'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { t } from '@/lib/i18n'
+import { createResource, Show } from 'solid-js'
+import { api } from '@/lib/api'
 
 interface LayoutProps {
   children?: JSX.Element
 }
 
 export default function Layout(props: LayoutProps) {
+  const [settings] = createResource(api.getSiteSettings)
+
   return (
     <div class="min-h-screen flex flex-col">
-      <header class="bg-card border-b shadow-sm">
+      <header class="bg-background/95 border-b border-border shadow-sm">
         <div class="container mx-auto px-4 py-3 flex items-center justify-between">
-          <A href="/" class="flex items-baseline gap-1 font-bold tracking-tight" aria-label="4CHANGE.NOW">
-            <span class="text-3xl text-primary">4|CHANGE</span>
-            <span class="text-xl text-foreground/70">.NOW</span>
+          <A href="/" class="flex items-baseline gap-2 font-bold tracking-tight" aria-label={settings()?.publicSiteTitle ?? 'For One Change'}>
+            <Show when={settings()?.logoUrl}>
+              {(logoUrl) => <img src={logoUrl()} alt="" class="h-10 w-auto" />}
+            </Show>
+            <span class="text-2xl uppercase text-primary md:text-3xl">For One Change</span>
           </A>
           <div class="flex items-center gap-4">
             <p class="hidden text-sm text-muted-foreground md:block">
-              Gemeinsam Veränderung sichtbar machen
+              {settings()?.publicClaim ?? 'Gemeinsam Veränderung sichtbar machen'}
             </p>
             <nav class="flex gap-4 text-sm">
               <A href="/" class="hover:text-primary transition-colors" activeClass="text-primary font-medium">{t('app.petitions')}</A>
@@ -36,7 +42,7 @@ export default function Layout(props: LayoutProps) {
 
       <footer class="bg-card border-t py-5 text-center text-sm text-muted-foreground">
         <div class="container mx-auto px-4">
-          &copy; {new Date().getFullYear()} oPet &mdash; {t('app.open_petition_platform')} &mdash;{' '}
+          &copy; {new Date().getFullYear()} {settings()?.publicSiteTitle ?? 'For One Change'} &mdash; {t('app.open_petition_platform')} &mdash;{' '}
           <A href="/privacy" class="hover:underline">{t('app.privacy')}</A>
           {' '}&bull;{' '}
           <A href="/imprint" class="hover:underline">{t('app.imprint')}</A>

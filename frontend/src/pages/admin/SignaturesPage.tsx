@@ -174,7 +174,14 @@ export default function SignaturesPage() {
                             {[sig.city, sig.country].filter(Boolean).join(', ') || t('app.text')}
                           </TableCell>
                           <TableCell>
-                            <StatusBadge status={deriveSigStatus(sig)} type="signature" />
+                            <div class="flex flex-wrap items-center gap-2">
+                              <StatusBadge status={deriveSigStatus(sig)} type="signature" />
+                              <Show when={(sig.riskSignals?.length ?? 0) > 0}>
+                                <span class="rounded-full bg-warning px-2 py-0.5 text-xs font-medium text-warning-foreground" title={sig.riskSignals?.map((risk) => risk.reason).join(', ')}>
+                                  Risiko {sig.riskSignals?.length}
+                                </span>
+                              </Show>
+                            </div>
                           </TableCell>
                           <TableCell class="text-sm text-muted-foreground">
                             {new Date(sig.createdAt).toLocaleDateString()}

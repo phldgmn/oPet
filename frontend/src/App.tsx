@@ -21,6 +21,8 @@ const AdminSignaturesPage = lazy(() => import('./pages/admin/SignaturesPage.js')
 const AdminExportPage = lazy(() => import('./pages/admin/ExportPage.js'))
 const AdminBackupPage = lazy(() => import('./pages/admin/BackupPage.js'))
 const AdminUsersPage = lazy(() => import('./pages/admin/UsersPage.js'))
+const AdminSiteSettingsPage = lazy(() => import('./pages/admin/SiteSettingsPage.js'))
+const AdminNewsRadarPage = lazy(() => import('./pages/admin/NewsRadarPage.js'))
 
 export default function App() {
   return (
@@ -46,6 +48,8 @@ export default function App() {
         <Route path="/export" component={AdminExportPage} />
         <Route path="/backup" component={AdminBackupPage} />
         <Route path="/users" component={AdminUsersPage} />
+        <Route path="/settings" component={AdminSiteSettingsPage} />
+        <Route path="/news" component={AdminNewsRadarPage} />
       </Route>
     </Router>
   )
