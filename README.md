@@ -96,6 +96,7 @@ See [`.env.example`](.env.example) for all available variables.
 | `SMTP_PASS`     | SMTP password                          |
 | `FROM_EMAIL`    | Sender address for outgoing emails     |
 | `APP_URL`       | Public URL of the frontend             |
+| `CORS_ORIGINS`  | Comma-separated frontend origins allowed to call the backend API; defaults to `APP_URL` |
 | `ADMIN_EMAIL`   | Initial admin email (seed only)        |
 | `ADMIN_PASSWORD`| Initial admin password (seed only)     |
 

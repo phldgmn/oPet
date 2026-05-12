@@ -25,6 +25,7 @@ COPY --from=build /repo/backend/dist ./dist
 COPY --from=build /repo/backend/prisma ./prisma
 COPY --from=build /repo/backend/prisma.config.ts ./prisma.config.ts
 COPY --from=build /repo/backend/scripts ./scripts
+COPY --from=build /repo/backend/src/lib/databaseUrl.ts ./src/lib/databaseUrl.ts
 
 EXPOSE 3001
 

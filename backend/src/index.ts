@@ -8,12 +8,26 @@ import { adminRoutes } from './routes/admin.js'
 import { t } from './lib/i18n.js'
 import { importNewsFromEnabledSources } from './lib/news.js'
 
+function normalizeOrigin(origin: string) {
+  return origin.trim().replace(/\/+$/, '')
+}
+
+const allowedOrigins = new Set(
+  (process.env.CORS_ORIGINS || process.env.APP_URL || 'http://localhost:3000')
+    .split(',')
+    .map(normalizeOrigin)
+    .filter(Boolean),
+)
+
 const app = new Hono()
 
 app.use('*', logger())
 app.use('*', secureHeaders())
 app.use('*', cors({
-  origin: process.env.APP_URL || 'http://localhost:3000',
+  origin: (origin) => {
+    const normalizedOrigin = normalizeOrigin(origin)
+    return allowedOrigins.has(normalizedOrigin) ? normalizedOrigin : undefined
+  },
   credentials: true,
 }))
 app.use('/uploads/*', serveStatic({ root: './' }))
