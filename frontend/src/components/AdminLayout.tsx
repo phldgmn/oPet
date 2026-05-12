@@ -1,7 +1,7 @@
 import { JSX, Show, For, createEffect, createMemo, createResource, createSignal } from 'solid-js'
 import { A, useLocation, useNavigate } from '@solidjs/router'
 import { adminApi, AdminPetition } from '@/lib/api.js'
-import { getToken, getUser, isAdmin, isAuthenticated, logout } from '@/stores/auth.js'
+import { canWritePetitions, getToken, getUser, isAdmin, isAuthenticated, logout } from '@/stores/auth.js'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { Button } from '@/components/ui/button'
 import {
@@ -171,8 +171,10 @@ export default function AdminLayout(props: AdminLayoutProps) {
 
   const bottomNavItems = createMemo<[string, string][]>(() => {
     const items: [string, string][] = [['/admin/export', `📤 ${t('app.export')}`]]
-    if (isAdmin()) {
+    if (canWritePetitions()) {
       items.push(['/admin/news', '📰 Pressespiegel'])
+    }
+    if (isAdmin()) {
       items.push(['/admin/settings', '🎨 Auftritt'])
       items.push(['/admin/backup', `💾 ${t('app.backup')}`])
       items.push(['/admin/users', `👤 ${t('app.users')}`])

@@ -1,6 +1,6 @@
 import { createResource, createSignal, For, Show } from 'solid-js'
 import { adminApi, NewsItem } from '@/lib/api'
-import { getToken } from '@/stores/auth'
+import { getToken, isAdmin } from '@/stores/auth'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,6 +9,7 @@ import { TextField, TextFieldInput, TextFieldLabel } from '@/components/ui/text-
 
 export default function NewsRadarPage() {
   const token = getToken() ?? ''
+  const isAdminUser = isAdmin()
   const [name, setName] = createSignal('')
   const [feedUrl, setFeedUrl] = createSignal('')
   const [enabled, setEnabled] = createSignal(true)
@@ -93,9 +94,11 @@ export default function NewsRadarPage() {
           <h1 class="text-2xl font-bold">Pressespiegel</h1>
           <p class="mt-1 text-sm text-muted-foreground">RSS-Meldungen werden als Entwurf importiert und erst nach Freigabe öffentlich angezeigt.</p>
         </div>
-        <Button onClick={runImport} disabled={importing()}>
-          {importing() ? 'Importiert…' : 'Import jetzt starten'}
-        </Button>
+        <Show when={isAdminUser}>
+          <Button onClick={runImport} disabled={importing()}>
+            {importing() ? 'Importiert…' : 'Import jetzt starten'}
+          </Button>
+        </Show>
       </div>
 
       <Show when={message()}>
@@ -217,11 +220,13 @@ export default function NewsRadarPage() {
                           Quelle öffnen
                         </a>
                       </div>
-                      <div class="flex shrink-0 gap-2">
-                        <Button size="sm" variant={item.status === 'approved' ? 'default' : 'outline'} onClick={() => setStatus(item, 'approved')}>Freigeben</Button>
-                        <Button size="sm" variant={item.status === 'hidden' ? 'default' : 'outline'} onClick={() => setStatus(item, 'hidden')}>Ausblenden</Button>
-                        <Button size="sm" variant={item.status === 'draft' ? 'default' : 'outline'} onClick={() => setStatus(item, 'draft')}>Entwurf</Button>
-                      </div>
+                      <Show when={isAdminUser}>
+                        <div class="flex shrink-0 gap-2">
+                          <Button size="sm" variant={item.status === 'approved' ? 'default' : 'outline'} onClick={() => setStatus(item, 'approved')}>Freigeben</Button>
+                          <Button size="sm" variant={item.status === 'hidden' ? 'default' : 'outline'} onClick={() => setStatus(item, 'hidden')}>Ausblenden</Button>
+                          <Button size="sm" variant={item.status === 'draft' ? 'default' : 'outline'} onClick={() => setStatus(item, 'draft')}>Entwurf</Button>
+                        </div>
+                      </Show>
                     </div>
                   </article>
                 )}
