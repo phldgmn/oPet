@@ -13,6 +13,7 @@
 import { execSync } from 'child_process'
 import { existsSync, readFileSync, appendFileSync, readdirSync, statSync } from 'fs'
 import { resolve } from 'path'
+import { isPostgresDatabaseUrl, resolveDatabaseUrl } from '../src/lib/databaseUrl.js'
 
 const ROOT = resolve(import.meta.dir, '..')
 const ENV_FILE = resolve(ROOT, '..', '.env')
@@ -66,8 +67,7 @@ function hasMigrationFiles(): boolean {
 }
 
 const rawUrl = (process.env.DATABASE_URL ?? '').trim()
-const isPostgres =
-  rawUrl.startsWith('postgresql://') || rawUrl.startsWith('postgres://')
+const isPostgres = isPostgresDatabaseUrl(rawUrl)
 
 let schema: string
 let databaseUrl: string
@@ -75,9 +75,9 @@ let databaseUrl: string
 if (isPostgres) {
   console.log('[prepare-db] PostgreSQL detected — using PostgreSQL database')
   schema = POSTGRES_SCHEMA
-  databaseUrl = rawUrl
+  databaseUrl = resolveDatabaseUrl(rawUrl, ROOT)
 } else {
-  databaseUrl = rawUrl || SQLITE_URL
+  databaseUrl = resolveDatabaseUrl(rawUrl || SQLITE_URL, ROOT)
   console.log(
     `[prepare-db] No PostgreSQL URL detected — falling back to SQLite (${databaseUrl})`
   )

@@ -3,14 +3,15 @@ import { PrismaLibSql } from '@prisma/adapter-libsql'
 import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
 import { resolve } from 'path'
+import { isPostgresDatabaseUrl, resolveDatabaseUrl } from '../src/lib/databaseUrl.js'
 
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = `file:${resolve(import.meta.dir, '..', 'opet.db')}`
 }
 
-const databaseUrl = process.env.DATABASE_URL
-const isPostgres =
-  databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('postgres://')
+const databaseUrl = resolveDatabaseUrl(process.env.DATABASE_URL, resolve(import.meta.dir, '..'))
+process.env.DATABASE_URL = databaseUrl
+const isPostgres = isPostgresDatabaseUrl(databaseUrl)
 const adapter = isPostgres
   ? new PrismaPg(databaseUrl)
   : new PrismaLibSql({ url: databaseUrl })
