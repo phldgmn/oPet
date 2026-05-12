@@ -9,6 +9,7 @@ import { rateLimit } from '../middleware/rateLimit.js'
 import { createAuditLog } from '../lib/audit.js'
 import { exportSignatures } from '../lib/export.js'
 import { importNewsFromEnabledSources } from '../lib/news.js'
+import { toApiNewsSourceFeedUrl, toStoredNewsSourceFeedUrl } from '../lib/newsSources.js'
 import type { AppVariables } from '../types.js'
 import { t } from '../lib/i18n.js'
 
@@ -56,17 +57,8 @@ const imageReferenceSchema = z.preprocess(
   ]).optional(),
 )
 
-const MANUAL_NEWS_SOURCE_PREFIX = 'manual://news-source/'
-
-function toStoredNewsSourceFeedUrl(feedUrl?: string): string {
-  const value = feedUrl?.trim()
-  if (value) return value
-  return `${MANUAL_NEWS_SOURCE_PREFIX}${crypto.randomUUID()}`
-}
-
 function toApiNewsSource<T extends { feedUrl: string }>(source: T): T {
-  if (!source.feedUrl.startsWith(MANUAL_NEWS_SOURCE_PREFIX)) return source
-  return { ...source, feedUrl: '' }
+  return { ...source, feedUrl: toApiNewsSourceFeedUrl(source.feedUrl) }
 }
 
 async function getAccessiblePetitionIds(userId: string): Promise<string[]> {
@@ -264,7 +256,7 @@ adminRoutes.put('/site-settings', async (c) => {
 const newsSourceSchema = z.object({
   name: z.string().min(2).max(160),
   feedUrl: z.preprocess(
-    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    (value) => (typeof value === 'string' ? value.trim() || undefined : value),
     z.string().url().max(2048).optional(),
   ),
   enabled: z.boolean().default(true),
@@ -275,7 +267,7 @@ const newsItemCreateSchema = z.object({
   title: z.string().trim().min(2).max(300),
   url: z.string().url().max(2048),
   excerpt: z.preprocess(
-    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    (value) => (typeof value === 'string' ? value.trim() || undefined : value),
     z.string().max(500).optional(),
   ),
   publishedAt: z.preprocess(
@@ -331,7 +323,7 @@ adminRoutes.put('/news/sources/:id', async (c) => {
     where: { id: c.req.param('id') },
     data: {
       ...parsed.data,
-      ...(parsed.data.feedUrl ? { feedUrl: parsed.data.feedUrl } : {}),
+      ...(parsed.data.feedUrl !== undefined ? { feedUrl: toStoredNewsSourceFeedUrl(parsed.data.feedUrl) } : {}),
     },
   })
   await createAuditLog('news_source.updated', 'NewsSource', source.id, user.userId)

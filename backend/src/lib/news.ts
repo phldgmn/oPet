@@ -1,6 +1,5 @@
 import { prisma } from '../db.js'
-
-const MANUAL_NEWS_SOURCE_PREFIX = 'manual://news-source/'
+import { isImportableNewsSourceFeedUrl } from './newsSources.js'
 
 export interface ParsedFeedItem {
   title: string
@@ -75,10 +74,7 @@ export async function importNewsFromEnabledSources() {
   let skipped = 0
 
   for (const source of sources) {
-    if (
-      source.feedUrl.startsWith(MANUAL_NEWS_SOURCE_PREFIX) ||
-      (!source.feedUrl.startsWith('http://') && !source.feedUrl.startsWith('https://'))
-    ) {
+    if (!isImportableNewsSourceFeedUrl(source.feedUrl)) {
       continue
     }
     try {
