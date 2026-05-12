@@ -1,4 +1,4 @@
-import { createResource, createSignal, Show } from 'solid-js'
+import { createMemo, createResource, createSignal, Show } from 'solid-js'
 import { useNavigate, useParams } from '@solidjs/router'
 import { adminApi } from '@/lib/api.js'
 import { canWritePetitions, getToken, isAdmin } from '@/stores/auth.js'
@@ -65,7 +65,8 @@ export default function PetitionEditorPage() {
   const token = getToken() ?? ''
   const navigate = useNavigate()
   const params = useParams<{ id?: string }>()
-  const isEdit = !!params.id
+  const petitionId = createMemo(() => (params.id && params.id !== 'new' ? params.id : undefined))
+  const isEdit = createMemo(() => !!petitionId())
 
   const [form, setForm] = createSignal<PetitionFormData>(emptyForm())
   const [saving, setSaving] = createSignal(false)
@@ -81,7 +82,7 @@ export default function PetitionEditorPage() {
     )
   }
 
-  if (!isEdit && !isAdmin()) {
+  if (!isEdit() && !isAdmin()) {
     return (
       <Alert variant="destructive" class="mb-4">
         <AlertDescription>{t('app.only_admins_can_create_petitions')}</AlertDescription>
@@ -90,7 +91,7 @@ export default function PetitionEditorPage() {
   }
 
   const [existing] = createResource(
-    () => (isEdit ? params.id : undefined),
+    petitionId,
     async (id) => {
       const p = await adminApi.getPetition(token, id!)
       setForm({
@@ -171,8 +172,9 @@ export default function PetitionEditorPage() {
         startsAt: f.startsAt ? new Date(f.startsAt).toISOString() : undefined,
         endsAt: f.endsAt ? new Date(f.endsAt).toISOString() : undefined,
       }
-      if (isEdit) {
-        await adminApi.updatePetition(token, params.id!, payload)
+      const id = petitionId()
+      if (id) {
+        await adminApi.updatePetition(token, id, payload)
         setSuccess(t('app.petition_updated_successfully'))
       } else {
         const created = await adminApi.createPetition(token, payload)
@@ -188,14 +190,16 @@ export default function PetitionEditorPage() {
   return (
     <div class="max-w-3xl">
       <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold">{isEdit ? t('app.edit_petition') : t('app.new_petition')}</h1>
+        <h1 class="text-2xl font-bold">{isEdit() ? t('app.edit_petition') : t('app.new_petition')}</h1>
         <div class="flex items-center gap-2">
-          <Show when={isEdit && params.id}>
-            <Button variant="outline" size="sm" as="a" href={`/admin/petitions/${params.id}/updates`}>
+          <Show when={isEdit() && petitionId()}>
+            {(id) => (
+            <Button variant="outline" size="sm" as="a" href={`/admin/petitions/${id()}/updates`}>
               {t('app.manage_updates')}
             </Button>
+            )}
           </Show>
-          <Show when={isEdit && existing()}>
+          <Show when={isEdit() && existing()}>
             <Button variant="outline" size="sm" as="a" href={`/petition/${existing()?.slug}`} target="_blank">
               {t('app.view_public_page')} ↗
             </Button>
@@ -230,7 +234,7 @@ export default function PetitionEditorPage() {
                 value={form().title}
                 onInput={(e) => {
                   update('title', e.currentTarget.value)
-                  if (!isEdit) update('slug', autoSlug(e.currentTarget.value))
+                  if (!isEdit()) update('slug', autoSlug(e.currentTarget.value))
                 }}
               />
               <TextFieldDescription>Kurz, konkret, teilbar.</TextFieldDescription>
@@ -362,7 +366,7 @@ export default function PetitionEditorPage() {
                 placeholder={t('app.brief_description_of_the_petition_recipient')}
                   minHeight="5rem"
                 />
-                <TextFieldDescription>Kurzer Kontext, warum diese Stelle die richtige Adressatin ist.</TextFieldDescription>
+                <p class="text-sm text-muted-foreground">Kurzer Kontext, warum diese Stelle die richtige Adressatin ist.</p>
               </div>
           </CardContent>
         </Card>
@@ -457,7 +461,7 @@ export default function PetitionEditorPage() {
 
         <div class="flex gap-3 pb-8">
           <Button type="submit" disabled={saving()}>
-            {saving() ? t('app.saving') : isEdit ? t('app.save_changes') : t('app.create_petition')}
+            {saving() ? t('app.saving') : isEdit() ? t('app.save_changes') : t('app.create_petition')}
           </Button>
           <Button type="button" variant="outline" onClick={() => navigate('/admin/petitions')}>
             {t('app.cancel')}
