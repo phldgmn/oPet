@@ -1,5 +1,7 @@
 import { prisma } from '../db.js'
 
+const MANUAL_NEWS_SOURCE_PREFIX = 'manual://news-source/'
+
 export interface ParsedFeedItem {
   title: string
   url: string
@@ -73,6 +75,12 @@ export async function importNewsFromEnabledSources() {
   let skipped = 0
 
   for (const source of sources) {
+    if (
+      source.feedUrl.startsWith(MANUAL_NEWS_SOURCE_PREFIX) ||
+      (!source.feedUrl.startsWith('http://') && !source.feedUrl.startsWith('https://'))
+    ) {
+      continue
+    }
     try {
       const response = await fetch(source.feedUrl, {
         headers: { Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml' },

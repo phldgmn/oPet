@@ -56,6 +56,19 @@ const imageReferenceSchema = z.preprocess(
   ]).optional(),
 )
 
+const MANUAL_NEWS_SOURCE_PREFIX = 'manual://news-source/'
+
+function toStoredNewsSourceFeedUrl(feedUrl?: string): string {
+  const value = feedUrl?.trim()
+  if (value) return value
+  return `${MANUAL_NEWS_SOURCE_PREFIX}${crypto.randomUUID()}`
+}
+
+function toApiNewsSource<T extends { feedUrl: string }>(source: T): T {
+  if (!source.feedUrl.startsWith(MANUAL_NEWS_SOURCE_PREFIX)) return source
+  return { ...source, feedUrl: '' }
+}
+
 async function getAccessiblePetitionIds(userId: string): Promise<string[]> {
   const links = await prisma.petitionUserAccess.findMany({
     where: { userId },
@@ -250,8 +263,26 @@ adminRoutes.put('/site-settings', async (c) => {
 
 const newsSourceSchema = z.object({
   name: z.string().min(2).max(160),
-  feedUrl: z.string().url().max(2048),
+  feedUrl: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z.string().url().max(2048).optional(),
+  ),
   enabled: z.boolean().default(true),
+})
+
+const newsItemCreateSchema = z.object({
+  sourceId: z.string().uuid(),
+  title: z.string().trim().min(2).max(300),
+  url: z.string().url().max(2048),
+  excerpt: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z.string().max(500).optional(),
+  ),
+  publishedAt: z.preprocess(
+    (value) => (value === '' || value === null ? undefined : value),
+    z.coerce.date().optional(),
+  ),
+  status: z.enum(['draft', 'approved', 'hidden']).default('draft'),
 })
 
 const newsItemStatusSchema = z.object({
@@ -266,7 +297,7 @@ adminRoutes.get('/news/sources', async (c) => {
     orderBy: { createdAt: 'desc' },
     include: { _count: { select: { items: true } } },
   })
-  return c.json({ sources })
+  return c.json({ sources: sources.map(toApiNewsSource) })
 })
 
 adminRoutes.post('/news/sources', async (c) => {
@@ -277,9 +308,15 @@ adminRoutes.post('/news/sources', async (c) => {
   const parsed = newsSourceSchema.safeParse(body)
   if (!parsed.success) return c.json({ error: t(c, 'api.validation_error'), details: parsed.error.flatten() }, 422)
 
-  const source = await prisma.newsSource.create({ data: parsed.data })
+  const source = await prisma.newsSource.create({
+    data: {
+      name: parsed.data.name,
+      feedUrl: toStoredNewsSourceFeedUrl(parsed.data.feedUrl),
+      enabled: parsed.data.enabled,
+    },
+  })
   await createAuditLog('news_source.created', 'NewsSource', source.id, user.userId)
-  return c.json(source, 201)
+  return c.json(toApiNewsSource(source), 201)
 })
 
 adminRoutes.put('/news/sources/:id', async (c) => {
@@ -290,9 +327,15 @@ adminRoutes.put('/news/sources/:id', async (c) => {
   const parsed = newsSourceSchema.partial().safeParse(body)
   if (!parsed.success) return c.json({ error: t(c, 'api.validation_error'), details: parsed.error.flatten() }, 422)
 
-  const source = await prisma.newsSource.update({ where: { id: c.req.param('id') }, data: parsed.data })
+  const source = await prisma.newsSource.update({
+    where: { id: c.req.param('id') },
+    data: {
+      ...parsed.data,
+      ...(parsed.data.feedUrl ? { feedUrl: parsed.data.feedUrl } : {}),
+    },
+  })
   await createAuditLog('news_source.updated', 'NewsSource', source.id, user.userId)
-  return c.json(source)
+  return c.json(toApiNewsSource(source))
 })
 
 adminRoutes.delete('/news/sources/:id', async (c) => {
@@ -317,6 +360,36 @@ adminRoutes.get('/news/items', async (c) => {
     include: { source: { select: { id: true, name: true } } },
   })
   return c.json({ items })
+})
+
+adminRoutes.post('/news/items', async (c) => {
+  const user = c.get('user')
+  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+
+  const body = await c.req.json().catch(() => null)
+  const parsed = newsItemCreateSchema.safeParse(body)
+  if (!parsed.success) return c.json({ error: t(c, 'api.validation_error'), details: parsed.error.flatten() }, 422)
+
+  const source = await prisma.newsSource.findUnique({
+    where: { id: parsed.data.sourceId },
+    select: { id: true },
+  })
+  if (!source) return c.json({ error: t(c, 'api.not_found') }, 404)
+
+  const item = await prisma.newsItem.create({
+    data: {
+      sourceId: parsed.data.sourceId,
+      title: parsed.data.title,
+      url: parsed.data.url,
+      excerpt: parsed.data.excerpt,
+      publishedAt: parsed.data.publishedAt,
+      status: parsed.data.status,
+    },
+    include: { source: { select: { id: true, name: true } } },
+  })
+
+  await createAuditLog('news_item.created', 'NewsItem', item.id, user.userId, { status: item.status })
+  return c.json(item, 201)
 })
 
 adminRoutes.put('/news/items/:id/status', async (c) => {
