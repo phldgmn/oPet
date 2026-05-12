@@ -390,7 +390,7 @@ export const adminApi = {
   getNewsSources: (token: string) =>
     request<{ sources: NewsSource[] }>('/api/admin/news/sources', {}, token),
 
-  createNewsSource: (token: string, data: { name: string; feedUrl: string; enabled: boolean }) =>
+  createNewsSource: (token: string, data: { name: string; feedUrl?: string; enabled: boolean }) =>
     request<NewsSource>('/api/admin/news/sources', { method: 'POST', body: JSON.stringify(data) }, token),
 
   updateNewsSource: (token: string, id: string, data: Partial<{ name: string; feedUrl: string; enabled: boolean }>) =>
@@ -404,6 +404,11 @@ export const adminApi = {
     if (params?.status) q.set('status', params.status)
     return request<{ items: NewsItem[] }>(`/api/admin/news/items?${q}`, {}, token)
   },
+
+  createNewsItem: (
+    token: string,
+    data: { sourceId: string; title: string; url: string; excerpt?: string; publishedAt?: string; status?: NewsItem['status'] },
+  ) => request<NewsItem>('/api/admin/news/items', { method: 'POST', body: JSON.stringify(data) }, token),
 
   updateNewsItemStatus: (token: string, id: string, status: NewsItem['status']) =>
     request<NewsItem>(`/api/admin/news/items/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }, token),

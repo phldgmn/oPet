@@ -12,6 +12,11 @@ export default function NewsRadarPage() {
   const [name, setName] = createSignal('')
   const [feedUrl, setFeedUrl] = createSignal('')
   const [enabled, setEnabled] = createSignal(true)
+  const [manualSourceId, setManualSourceId] = createSignal('')
+  const [manualTitle, setManualTitle] = createSignal('')
+  const [manualUrl, setManualUrl] = createSignal('')
+  const [manualExcerpt, setManualExcerpt] = createSignal('')
+  const [manualPublishedAt, setManualPublishedAt] = createSignal('')
   const [message, setMessage] = createSignal<string | null>(null)
   const [error, setError] = createSignal<string | null>(null)
   const [importing, setImporting] = createSignal(false)
@@ -24,7 +29,7 @@ export default function NewsRadarPage() {
     setError(null)
     setMessage(null)
     try {
-      await adminApi.createNewsSource(token, { name: name().trim(), feedUrl: feedUrl().trim(), enabled: enabled() })
+      await adminApi.createNewsSource(token, { name: name().trim(), feedUrl: feedUrl().trim() || undefined, enabled: enabled() })
       setName('')
       setFeedUrl('')
       setEnabled(true)
@@ -32,6 +37,31 @@ export default function NewsRadarPage() {
       await refetchSources()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Quelle konnte nicht gespeichert werden.')
+    }
+  }
+
+  async function createManualItem(e: Event) {
+    e.preventDefault()
+    setError(null)
+    setMessage(null)
+    try {
+      await adminApi.createNewsItem(token, {
+        sourceId: manualSourceId(),
+        title: manualTitle().trim(),
+        url: manualUrl().trim(),
+        excerpt: manualExcerpt().trim() || undefined,
+        publishedAt: manualPublishedAt() || undefined,
+        status: 'draft',
+      })
+      setManualTitle('')
+      setManualUrl('')
+      setManualExcerpt('')
+      setManualPublishedAt('')
+      setMessage('Meldung als Entwurf gespeichert.')
+      await refetchItems()
+      await refetchSources()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Meldung konnte nicht gespeichert werden.')
     }
   }
 
@@ -87,13 +117,57 @@ export default function NewsRadarPage() {
                 </TextField>
                 <TextField>
                   <TextFieldLabel>RSS/Atom URL</TextFieldLabel>
-                  <TextFieldInput required type="url" value={feedUrl()} onInput={(e) => setFeedUrl(e.currentTarget.value)} />
+                  <TextFieldInput type="url" value={feedUrl()} onInput={(e) => setFeedUrl(e.currentTarget.value)} />
                 </TextField>
                 <label class="flex items-center gap-2 text-sm">
                   <Checkbox checked={enabled()} onChange={setEnabled} />
                   Aktiv
                 </label>
                 <Button type="submit">Quelle hinzufügen</Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Manuelle Meldung</CardTitle></CardHeader>
+            <CardContent>
+              <form onSubmit={createManualItem} class="space-y-4">
+                <label class="block text-sm">
+                  <span class="mb-1 block">Quelle</span>
+                  <select
+                    required
+                    class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={manualSourceId()}
+                    onChange={(e) => setManualSourceId(e.currentTarget.value)}
+                  >
+                    <option value="">Quelle auswählen…</option>
+                    <For each={sources()?.sources ?? []}>
+                      {(source) => <option value={source.id}>{source.name}</option>}
+                    </For>
+                  </select>
+                </label>
+                <TextField>
+                  <TextFieldLabel>Titel</TextFieldLabel>
+                  <TextFieldInput required value={manualTitle()} onInput={(e) => setManualTitle(e.currentTarget.value)} />
+                </TextField>
+                <TextField>
+                  <TextFieldLabel>Artikel-URL</TextFieldLabel>
+                  <TextFieldInput required type="url" value={manualUrl()} onInput={(e) => setManualUrl(e.currentTarget.value)} />
+                </TextField>
+                <TextField>
+                  <TextFieldLabel>Veröffentlicht am (optional)</TextFieldLabel>
+                  <TextFieldInput type="date" value={manualPublishedAt()} onInput={(e) => setManualPublishedAt(e.currentTarget.value)} />
+                </TextField>
+                <label class="block text-sm">
+                  <span class="mb-1 block">Kurztext (optional)</span>
+                  <textarea
+                    class="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    maxLength={500}
+                    value={manualExcerpt()}
+                    onInput={(e) => setManualExcerpt(e.currentTarget.value)}
+                  />
+                </label>
+                <Button type="submit">Meldung hinzufügen</Button>
               </form>
             </CardContent>
           </Card>
@@ -107,7 +181,7 @@ export default function NewsRadarPage() {
                     <div class="flex items-start justify-between gap-3">
                       <div class="min-w-0">
                         <p class="font-medium">{source.name}</p>
-                        <p class="truncate text-xs text-muted-foreground">{source.feedUrl}</p>
+                        <p class="truncate text-xs text-muted-foreground">{source.feedUrl || 'Manuell (kein RSS-Feed)'}</p>
                         <p class="mt-1 text-xs text-muted-foreground">{source._count?.items ?? 0} Meldungen</p>
                       </div>
                       <Checkbox

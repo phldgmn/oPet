@@ -1,4 +1,5 @@
 import { prisma } from '../db.js'
+import { isImportableNewsSourceFeedUrl } from './newsSources.js'
 
 export interface ParsedFeedItem {
   title: string
@@ -73,6 +74,9 @@ export async function importNewsFromEnabledSources() {
   let skipped = 0
 
   for (const source of sources) {
+    if (!isImportableNewsSourceFeedUrl(source.feedUrl)) {
+      continue
+    }
     try {
       const response = await fetch(source.feedUrl, {
         headers: { Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml' },
