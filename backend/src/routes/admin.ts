@@ -283,7 +283,7 @@ const newsItemStatusSchema = z.object({
 
 adminRoutes.get('/news/sources', async (c) => {
   const user = c.get('user')
-  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+  if (!canWritePetitions(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
 
   const sources = await prisma.newsSource.findMany({
     orderBy: { createdAt: 'desc' },
@@ -294,7 +294,7 @@ adminRoutes.get('/news/sources', async (c) => {
 
 adminRoutes.post('/news/sources', async (c) => {
   const user = c.get('user')
-  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+  if (!canWritePetitions(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
 
   const body = await c.req.json().catch(() => null)
   const parsed = newsSourceSchema.safeParse(body)
@@ -313,7 +313,7 @@ adminRoutes.post('/news/sources', async (c) => {
 
 adminRoutes.put('/news/sources/:id', async (c) => {
   const user = c.get('user')
-  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+  if (!canWritePetitions(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
 
   const body = await c.req.json().catch(() => null)
   const parsed = newsSourceSchema.partial().safeParse(body)
@@ -332,7 +332,7 @@ adminRoutes.put('/news/sources/:id', async (c) => {
 
 adminRoutes.delete('/news/sources/:id', async (c) => {
   const user = c.get('user')
-  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+  if (!canWritePetitions(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
 
   await prisma.newsSource.delete({ where: { id: c.req.param('id') } })
   await createAuditLog('news_source.deleted', 'NewsSource', c.req.param('id'), user.userId)
@@ -341,7 +341,7 @@ adminRoutes.delete('/news/sources/:id', async (c) => {
 
 adminRoutes.get('/news/items', async (c) => {
   const user = c.get('user')
-  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+  if (!canWritePetitions(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
 
   const status = c.req.query('status')
   const where = status && ['draft', 'approved', 'hidden'].includes(status) ? { status } : undefined
@@ -356,7 +356,7 @@ adminRoutes.get('/news/items', async (c) => {
 
 adminRoutes.post('/news/items', async (c) => {
   const user = c.get('user')
-  if (!isAdmin(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
+  if (!canWritePetitions(user.role)) return c.json({ error: t(c, 'api.forbidden') }, 403)
 
   const body = await c.req.json().catch(() => null)
   const parsed = newsItemCreateSchema.safeParse(body)
