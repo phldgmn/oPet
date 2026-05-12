@@ -36,7 +36,7 @@ export default function ImprintPage() {
             <p>
               {t('app.opet_is_open_source_software_the_source_code_is_available_at')}{' '}
               <a href="https://github.com/pdiegmann/oPet" target="_blank" rel="noopener noreferrer" class="underline">
-                github.com/pdiegmann/oPet
+                GitHub repository
               </a>.
             </p>
           </CardContent>

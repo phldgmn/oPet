@@ -36,9 +36,9 @@ export default function Home() {
   return (
     <div>
       <section class="-mx-4 border-b border-border bg-background px-4 pb-10 pt-8 md:-mx-8 md:px-8">
-        <p class="text-sm font-semibold uppercase tracking-wide text-primary">4CHANGE.NOW</p>
+        <p class="text-sm font-semibold uppercase tracking-wide text-primary">4|change</p>
         <h1 class="mt-2 max-w-4xl text-4xl font-extrabold tracking-tight md:text-6xl">
-          {settings()?.publicSiteTitle ?? 'For One Change'}
+          {settings()?.publicSiteTitle ?? '4|change'}
         </h1>
         <p class="mt-4 max-w-2xl text-lg text-muted-foreground">
           {settings()?.publicClaim ?? 'Gemeinsam Veränderung sichtbar machen'}: unterschreiben, bestätigen, teilen.

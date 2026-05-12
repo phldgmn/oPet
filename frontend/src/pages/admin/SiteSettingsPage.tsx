@@ -8,7 +8,7 @@ import { TextField, TextFieldInput, TextFieldLabel, TextFieldTextArea } from '@/
 
 export default function SiteSettingsPage() {
   const token = getToken() ?? ''
-  const [publicSiteTitle, setPublicSiteTitle] = createSignal('For One Change')
+  const [publicSiteTitle, setPublicSiteTitle] = createSignal('4|change')
   const [publicClaim, setPublicClaim] = createSignal('Gemeinsam Veränderung sichtbar machen')
   const [logoUrl, setLogoUrl] = createSignal('')
   const [defaultShareText, setDefaultShareText] = createSignal('Ich habe unterschrieben. Mach doch auch mit!')

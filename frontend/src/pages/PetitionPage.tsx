@@ -61,7 +61,7 @@ export default function PetitionPage() {
     const p = petition()
     if (!p) return
     const description = stripHtml(p.summary || p.body).slice(0, 160)
-    document.title = `${p.title} | For One Change`
+    document.title = `${p.title} | 4|change`
     setMeta('description', description)
     setMeta('og:title', p.title, 'property')
     setMeta('og:description', shareText() || description, 'property')
@@ -145,7 +145,7 @@ export default function PetitionPage() {
                 <div class="p-6">
                   <div class="mb-3 flex flex-wrap items-center gap-3">
                     <StatusBadge status={p().status as PetitionStatus} type="petition" />
-                    <span class="text-sm font-medium text-primary">For One Change</span>
+                    <span class="text-sm font-medium text-primary">4|change</span>
                   </div>
                   <h1 class="max-w-4xl break-words text-4xl font-extrabold tracking-tight md:text-5xl">{p().title}</h1>
                   <Show when={p().summary}>

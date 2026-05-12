@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.7
 FROM node:20-alpine AS build
 WORKDIR /repo/frontend
+ARG VITE_API_URL=
+ENV VITE_API_URL=$VITE_API_URL
 
 COPY frontend/package.json ./package.json
 RUN --mount=type=cache,target=/root/.npm \

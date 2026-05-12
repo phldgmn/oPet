@@ -473,7 +473,7 @@ export const adminApi = {
     if (!res.ok) throw new ApiError(res.status, t('app.backup_failed'))
     const disposition = res.headers.get('content-disposition') ?? ''
     const match = disposition.match(/filename="([^"]+)"/)
-    const filename = match ? match[1] : `opet-backup-${new Date().toISOString().split('app.t')[0]}.json`
+    const filename = match ? match[1] : `4change-backup-${new Date().toISOString().split('T')[0]}.json`
     const blob = await res.blob()
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')

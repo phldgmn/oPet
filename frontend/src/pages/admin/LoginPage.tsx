@@ -34,7 +34,7 @@ export default function AdminLoginPage() {
     <div class="min-h-screen flex items-center justify-center bg-background">
       <Card class="w-full max-w-sm">
         <CardHeader class="text-center">
-          <CardTitle class="text-2xl">✊ oPet {t('app.admin')}</CardTitle>
+          <CardTitle class="text-2xl">✊ 4|change {t('app.admin')}</CardTitle>
           <CardDescription>{t('app.sign_in_to_manage_petitions')}</CardDescription>
         </CardHeader>
         <CardContent>

@@ -1,4 +1,4 @@
-# oPet – Open Petition Platform
+# 4|change – Open Petition Platform
 
 A self-hosted, privacy-respecting petition platform built with Bun, Hono, Prisma, and SolidJS.
 

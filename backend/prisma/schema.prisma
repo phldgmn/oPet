@@ -24,7 +24,7 @@ model User {
 
 model SiteSettings {
   id                 String   @id @default("default")
-  publicSiteTitle    String   @default("For One Change")
+  publicSiteTitle    String   @default("4|change")
   publicClaim        String   @default("Gemeinsam Veränderung sichtbar machen")
   logoUrl            String?
   defaultShareText   String   @default("Ich habe unterschrieben. Mach doch auch mit!")

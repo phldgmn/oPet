@@ -32,7 +32,7 @@ bun run typecheck  # TypeScript type check without emitting
 
 ## Architecture
 
-**oPet** is a petition platform — a Bun monorepo with a Hono (TypeScript) backend and a SolidJS frontend.
+**4|change** is a petition platform — a Bun monorepo with a Hono (TypeScript) backend and a SolidJS frontend.
 
 ### Monorepo Layout
 
