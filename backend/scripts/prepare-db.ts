@@ -11,7 +11,7 @@
  */
 
 import { execSync } from 'child_process'
-import { existsSync, readFileSync, appendFileSync, statSync } from 'fs'
+import { existsSync, readFileSync, appendFileSync, readdirSync, statSync } from 'fs'
 import { resolve } from 'path'
 
 const ROOT = resolve(import.meta.dir, '..')
@@ -22,6 +22,7 @@ const SQLITE_URL = `file:${SQLITE_DB_PATH}`
 const POSTGRES_SCHEMA = resolve(ROOT, 'prisma', 'schema.prisma')
 const SQLITE_SCHEMA = resolve(ROOT, 'prisma', 'schema.sqlite.prisma')
 const PRISMA_CONFIG = resolve(ROOT, 'prisma.config.ts')
+const MIGRATIONS_DIR = resolve(ROOT, 'prisma', 'migrations')
 
 function run(cmd: string, env: Record<string, string | undefined>): void {
   execSync(cmd, { stdio: 'inherit', cwd: ROOT, env: { ...process.env, ...env } })
@@ -51,6 +52,17 @@ function appendToEnvFile(line: string): void {
   } catch (err) {
     console.warn(`[prepare-db] Could not write to ${ENV_FILE}: ${err}`)
   }
+}
+
+function hasMigrationFiles(): boolean {
+  if (!existsSync(MIGRATIONS_DIR)) return false
+
+  return readdirSync(MIGRATIONS_DIR, { withFileTypes: true }).some((entry) => {
+    if (!entry.isDirectory()) return false
+
+    const migrationPath = resolve(MIGRATIONS_DIR, entry.name, 'migration.sql')
+    return existsSync(migrationPath) && isRegularFile(migrationPath)
+  })
 }
 
 const rawUrl = (process.env.DATABASE_URL ?? '').trim()
@@ -88,12 +100,11 @@ run(`bunx prisma generate --config=${quotedConfig} --schema=${quotedSchema}`, en
 
 console.log('[prepare-db] Applying database schema…')
 if (isPostgres) {
-  // Use migrate deploy for PostgreSQL to avoid accidental data loss.
-  // If no migration history exists yet, fall back to db push.
-  try {
+  if (hasMigrationFiles()) {
+    // Use migrate deploy for PostgreSQL when real migrations are present.
     run(`bunx prisma migrate deploy --config=${quotedConfig} --schema=${quotedSchema}`, env)
-  } catch (err) {
-    console.log(`[prepare-db] migrate deploy failed (${err}) — running db push for PostgreSQL`)
+  } else {
+    console.log('[prepare-db] No Prisma migrations found — running db push for PostgreSQL')
     run(`bunx prisma db push --config=${quotedConfig} --schema=${quotedSchema} --url=${quotedUrl}`, env)
   }
 } else {
