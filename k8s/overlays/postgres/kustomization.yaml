@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - postgres-statefulset.yaml
+  - postgres-service.yaml
+  # secret.yaml / postgres-secret.yaml are git-ignored; copy from the
+  # *.example.yaml templates (or manage via SOPS/SealedSecrets) before running
+  # `kubectl apply -k` / letting Flux sync.
+  - secret.yaml
+  - postgres-secret.yaml
+
+patches:
+  - path: backend-deployment-patch.yaml

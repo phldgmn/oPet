@@ -1,0 +1,84 @@
+# Optional: automatic image updates via image-reflector-controller /
+# image-automation-controller. Requires those controllers to be part of your
+# Flux install (they aren't included in a minimal bootstrap).
+#
+# The CI workflow (.github/workflows/ghcr-image.yml) tags images as `latest`,
+# `<year>`, `<year>-<month>`, and `<year>-<month>-<day>` -- there is no semver
+# tag, so image policies below select the newest build by calendar date.
+#
+# The backend/frontend Deployments in k8s/base already carry the
+# `{"$imagepolicy": "opet:backend"}` / `{"$imagepolicy": "opet:frontend"}`
+# markers that image-automation-controller looks for.
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: backend
+  namespace: flux-system
+spec:
+  image: ghcr.io/pdiegmann/opet/backend
+  interval: 10m
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: frontend
+  namespace: flux-system
+spec:
+  image: ghcr.io/pdiegmann/opet/frontend
+  interval: 10m
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: backend
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: backend
+  policy:
+    numerical:
+      order: asc
+  filterTags:
+    pattern: '^\d{4}-\d{2}-\d{2}$'
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: frontend
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: frontend
+  policy:
+    numerical:
+      order: asc
+  filterTags:
+    pattern: '^\d{4}-\d{2}-\d{2}$'
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta1
+kind: ImageUpdateAutomation
+metadata:
+  name: opet
+  namespace: flux-system
+spec:
+  interval: 10m
+  sourceRef:
+    kind: GitRepository
+    name: opet
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      author:
+        name: fluxcdbot
+        email: fluxcdbot@users.noreply.github.com
+      messageTemplate: |
+        automated image update
+
+        {{ range .Updated.Images }}{{ println . }}{{ end }}
+    push:
+      branch: main
+  update:
+    path: ./k8s
+    strategy: Setters

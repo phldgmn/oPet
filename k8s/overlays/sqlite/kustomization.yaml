@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - backend-db-pvc.yaml
+  # secret.yaml is git-ignored; copy from secret.example.yaml (or manage via
+  # SOPS/SealedSecrets) before running `kubectl apply -k` / letting Flux sync.
+  - secret.yaml
+
+patches:
+  - path: backend-configmap-patch.yaml
+  - path: backend-deployment-patch.yaml

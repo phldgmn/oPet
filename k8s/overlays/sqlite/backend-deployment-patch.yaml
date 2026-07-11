@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: opet
+spec:
+  # SQLite lives on a single ReadWriteOnce volume: never run two pods against
+  # it concurrently, and force full pod replacement instead of rolling update.
+  strategy:
+    type: Recreate
+  template:
+    spec:
+      containers:
+        - name: backend
+          volumeMounts:
+            - name: sqlite-db
+              mountPath: /var/lib/opet
+      volumes:
+        - name: sqlite-db
+          persistentVolumeClaim:
+            claimName: backend-sqlite-db

@@ -1,0 +1,12 @@
+# Flux Source: tracks this repository. Adjust `spec.url`/`spec.ref` and apply
+# with `flux create source git` or `kubectl apply -f` once flux-system is bootstrapped.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: opet
+  namespace: flux-system
+spec:
+  interval: 5m
+  url: https://github.com/pdiegmann/oPet.git
+  ref:
+    branch: main

@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: opet
+  namespace: opet
+  annotations:
+    # Example cert-manager wiring; remove if unused.
+    # cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: ${OPET_INGRESS_CLASS:=nginx}
+  rules:
+    - host: ${OPET_HOST}
+      http:
+        paths:
+          # The frontend calls the API with relative paths (same-origin), so
+          # /api and /uploads must be routed to the backend on this same host.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 3001
+          - path: /uploads
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 3001
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+  # tls:
+  #   - hosts: ["${OPET_HOST}"]
+  #     secretName: opet-tls

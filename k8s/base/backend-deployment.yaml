@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: opet
+  labels:
+    app.kubernetes.io/name: opet-backend
+    app.kubernetes.io/component: backend
+spec:
+  # SQLite mode requires a single replica (ReadWriteOnce volume, file-based DB).
+  # Postgres mode may be scaled, but note NEWS_IMPORT_INTERVAL_MINUTES runs an
+  # in-process timer per pod -- keep it 0 (default) or replicas: 1 if you enable it.
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opet-backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: opet-backend
+        app.kubernetes.io/component: backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1000
+      containers:
+        - name: backend
+          # {"$imagepolicy": "opet:backend"}
+          image: ghcr.io/pdiegmann/opet/backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3001
+          envFrom:
+            - configMapRef:
+                name: backend-config
+            - secretRef:
+                name: backend-secret
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: backend-uploads

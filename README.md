@@ -126,6 +126,12 @@ See [`.env.example`](.env.example) for all available variables.
 | GET    | `/api/admin/audit`                | Audit log                |
 | CRUD   | `/api/admin/users`                | Manage admin users       |
 
+## Kubernetes / Flux
+
+See [`k8s/README.md`](k8s/README.md) for Kustomize overlays (SQLite or
+Postgres), Flux `Kustomization`/`GitRepository`/image-automation examples,
+and secret-management guidance.
+
 ## License
 
 MIT

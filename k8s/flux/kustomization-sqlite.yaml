@@ -1,0 +1,21 @@
+# Flux Kustomization: reconciles k8s/overlays/sqlite into the cluster.
+# Use this OR kustomization-postgres.yaml, not both, in a given cluster/namespace.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: opet-sqlite
+  namespace: flux-system
+spec:
+  interval: 10m
+  sourceRef:
+    kind: GitRepository
+    name: opet
+  path: ./k8s/overlays/sqlite
+  prune: true
+  targetNamespace: opet
+  wait: true
+  timeout: 5m
+  postBuild:
+    substitute:
+      OPET_HOST: opet.example.com
+      OPET_INGRESS_CLASS: nginx

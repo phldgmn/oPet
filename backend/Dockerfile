@@ -19,14 +19,16 @@ RUN bun build src/index.ts --outdir dist --target bun --packages external
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+RUN mkdir -p /app/uploads && chown -R bun:bun /app
 
-COPY --from=build /repo/node_modules ./node_modules
-COPY --from=build /repo/backend/dist ./dist
-COPY --from=build /repo/backend/prisma ./prisma
-COPY --from=build /repo/backend/prisma.config.ts ./prisma.config.ts
-COPY --from=build /repo/backend/scripts ./scripts
-COPY --from=build /repo/backend/src/lib/databaseUrl.ts ./src/lib/databaseUrl.ts
+COPY --from=build --chown=bun:bun /repo/node_modules ./node_modules
+COPY --from=build --chown=bun:bun /repo/backend/dist ./dist
+COPY --from=build --chown=bun:bun /repo/backend/prisma ./prisma
+COPY --from=build --chown=bun:bun /repo/backend/prisma.config.ts ./prisma.config.ts
+COPY --from=build --chown=bun:bun /repo/backend/scripts ./scripts
+COPY --from=build --chown=bun:bun /repo/backend/src/lib/databaseUrl.ts ./src/lib/databaseUrl.ts
 
+USER bun
 EXPOSE 3001
 
 CMD ["sh", "-c", "bun run scripts/prepare-db.ts && bun dist/index.js"]

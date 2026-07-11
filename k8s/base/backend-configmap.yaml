@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: opet
+  labels:
+    app.kubernetes.io/name: opet-backend
+data:
+  PORT: "3001"
+  NODE_ENV: "production"
+  # Public URL of the frontend/ingress host. Override per-overlay/environment.
+  APP_URL: "http://opet.example.com"
+  # Comma-separated origins allowed to call the API. Defaults to APP_URL when unset.
+  CORS_ORIGINS: "http://opet.example.com"
+  # Minutes between automatic RSS/news imports. 0 disables the timer (manual import only).
+  NEWS_IMPORT_INTERVAL_MINUTES: "0"
+  # Persisted volume mount path for petition image uploads.
+  UPLOAD_DIR: "/app/uploads"

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backend-sqlite-db
+  namespace: opet
+  labels:
+    app.kubernetes.io/name: opet-backend
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  # storageClassName: ""   # set to your cluster's storage class if not the default

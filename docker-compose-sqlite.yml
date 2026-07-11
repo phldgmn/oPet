@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
     container_name: frontend
     ports:
-      - "3080:80"
+      - "3080:8080"
     networks:
       - homelab_network
     depends_on:
@@ -43,7 +43,7 @@ services:
       - "traefik.http.routers.opet-frontend.entrypoints=websecure"
       - "traefik.http.routers.opet-frontend.tls=true"
       - "traefik.http.routers.opet-frontend.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
-      - "traefik.http.services.opet-frontend.loadbalancer.server.port=80"
+      - "traefik.http.services.opet-frontend.loadbalancer.server.port=8080"
 
 volumes:
   opet_data:

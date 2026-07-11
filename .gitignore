@@ -37,3 +37,7 @@ Thumbs.db
 postgres_data/
 
 *.db
+
+# Kubernetes overlay secrets (copy from *.example.yaml, never commit filled-in values)
+k8s/overlays/*/secret.yaml
+k8s/overlays/*/postgres-secret.yaml

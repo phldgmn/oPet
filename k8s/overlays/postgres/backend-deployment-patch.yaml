@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: opet
+spec:
+  template:
+    spec:
+      # Wait for postgres to accept connections before prepare-db.ts runs.
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres -p 5432; do echo waiting for postgres; sleep 2; done
