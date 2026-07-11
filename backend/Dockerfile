@@ -31,4 +31,7 @@ COPY --from=build --chown=bun:bun /repo/backend/src/lib/databaseUrl.ts ./src/lib
 USER bun
 EXPOSE 3001
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD bun -e "fetch('http://localhost:'+(process.env.PORT||3001)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
 CMD ["sh", "-c", "bun run scripts/prepare-db.ts && bun dist/index.js"]
