@@ -27,9 +27,9 @@ export default function Layout(props: LayoutProps) {
               {settings()?.publicClaim ?? 'Gemeinsam Veränderung sichtbar machen'}
             </p>
             <nav class="flex gap-4 text-sm">
-              <A href="/" class="hover:text-primary transition-colors" activeClass="text-primary font-medium">{t('app.petitions')}</A>
-              <A href="/privacy" class="hover:text-primary transition-colors">{t('app.privacy')}</A>
-              <A href="/imprint" class="hover:text-primary transition-colors">{t('app.imprint')}</A>
+              <A href="/" end class="hover:text-primary transition-colors" activeClass="text-primary font-medium">{t('app.petitions')}</A>
+              <A href="/privacy" class="hover:text-primary transition-colors" activeClass="text-primary font-medium">{t('app.privacy')}</A>
+              <A href="/imprint" class="hover:text-primary transition-colors" activeClass="text-primary font-medium">{t('app.imprint')}</A>
             </nav>
             <LanguageSwitcher />
           </div>
