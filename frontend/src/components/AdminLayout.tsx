@@ -192,7 +192,7 @@ export default function AdminLayout(props: AdminLayoutProps) {
           <div class="px-5 py-6">
             <A href="/admin/dashboard" class="text-xl font-bold text-white no-underline">
               <div class="mt-1 inline-block">
-                <HandFist class="mb-1 inline-block" size={24} strokeWidth={1} /> 4|change {t('app.admin')} 
+                <HandFist class="mb-1 inline-block" size={24} strokeWidth={1} /> 4|change
               </div>
               <div class="inline-block ml-1 float-end">
                 <LanguageSwitcher />
